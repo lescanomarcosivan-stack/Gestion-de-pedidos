@@ -1,0 +1,8 @@
+@* Página que se muestra cuando ocurre un error inesperado en producción *@
+@{
+    ViewData["Title"] = "Error"; // Título de la pestaña
+}
+<div class="alert alert-danger"> @* Recuadro rojo *@
+    <h4>Ocurrió un error</h4> @* Título del mensaje *@
+    <p class="mb-0">Algo salió mal al procesar la solicitud. Volvé a intentarlo en unos segundos.</p> @* Explicación para el usuario *@
+</div> @* Fin del recuadro *@

@@ -1,0 +1,54 @@
+@* Ficha de un cliente con todos sus pedidos *@
+@* La vista recibe un Cliente con su lista de Pedidos ya cargada *@
+@model Cliente
+@{
+    ViewData["Title"] = Model.Nombre; // El título de la pestaña es el nombre del cliente
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3"> @* Fila de título y botones *@
+    <h1 class="h3 mb-0">@Model.Nombre</h1> @* Nombre del cliente como título *@
+    <div> @* Grupo de botones *@
+        <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id">Editar</a> @* Ir a editar *@
+        <a class="btn btn-success" asp-controller="Pedidos" asp-action="Create" asp-route-clienteId="@Model.Id">+ Nuevo pedido</a> @* Crear pedido para este cliente *@
+    </div> @* Fin del grupo *@
+</div> @* Fin de la fila *@
+
+<div class="card mb-4"> @* Tarjeta con los datos del cliente *@
+    <div class="card-body"> @* Contenido de la tarjeta *@
+        <dl class="row mb-0"> @* Lista de definiciones: etiqueta a la izquierda, valor a la derecha *@
+            <dt class="col-sm-3">Email</dt><dd class="col-sm-9">@Model.Email</dd> @* Email *@
+            <dt class="col-sm-3">Teléfono</dt><dd class="col-sm-9">@(Model.Telefono ?? "—")</dd> @* Teléfono o guion si no tiene *@
+            <dt class="col-sm-3">Ciudad</dt><dd class="col-sm-9">@(Model.Ciudad ?? "—")</dd> @* Ciudad o guion *@
+            <dt class="col-sm-3">Alta</dt><dd class="col-sm-9">@EstadoMapper.HoraArgentina(Model.FechaAlta)</dd> @* Fecha de alta en hora argentina *@
+        </dl> @* Fin de la lista *@
+    </div> @* Fin del contenido *@
+</div> @* Fin de la tarjeta *@
+
+<h2 class="h5">Pedidos (@Model.Pedidos.Count)</h2> @* Subtítulo con la cantidad de pedidos *@
+@* Si no tiene pedidos, aviso; si tiene, tabla *@
+@if (Model.Pedidos.Count == 0)
+{
+    <div class="alert alert-info">Este cliente todavía no tiene pedidos.</div> @* Aviso *@
+}
+else
+{
+    <div class="table-responsive"> @* Tabla desplazable en celular *@
+        <table class="table table-hover bg-white align-middle"> @* Tabla de pedidos *@
+            <thead class="table-light"><tr><th>#</th><th>Descripción</th><th class="text-end">Monto</th><th>Estado</th><th>Creado</th></tr></thead> @* Encabezados *@
+            <tbody> @* Cuerpo *@
+                @* Una fila por pedido *@
+                @foreach (var p in Model.Pedidos)
+                {
+                    <tr> @* Fila *@
+                        <td><a asp-controller="Pedidos" asp-action="Details" asp-route-id="@p.Id">@p.Id</a></td> @* Número con enlace al detalle *@
+                        <td>@p.Descripcion</td> @* Descripción *@
+                        <td class="text-end">$ @p.Monto.ToString("N2")</td> @* Monto con 2 decimales *@
+                        <td><partial name="_EstadoBadge" model="p.Estado" /></td> @* Etiqueta de color del estado (vista parcial) *@
+                        <td>@EstadoMapper.HoraArgentina(p.FechaCreacion)</td> @* Fecha de creación *@
+                    </tr> @* Fin de la fila *@
+                }
+            </tbody> @* Fin del cuerpo *@
+        </table> @* Fin de la tabla *@
+    </div> @* Fin del contenedor *@
+}
+<a asp-action="Index">← Volver a clientes</a> @* Enlace para volver al listado *@

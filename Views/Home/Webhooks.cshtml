@@ -1,0 +1,37 @@
+@* Historial de avisos recibidos por el webhook (para comprobar en la revisión que llegaron) *@
+@* La vista recibe la lista de eventos guardados *@
+@model List<EventoWebhook>
+@{
+    ViewData["Title"] = "Webhooks recibidos"; // Título de la pestaña
+}
+
+<h1 class="h3 mb-1">Webhooks recibidos</h1> @* Título *@
+<p class="text-muted">Endpoint: <code>POST /api/webhooks/orders</code> · se muestran los últimos 100 eventos.</p> @* Dónde hay que enviar los avisos *@
+
+@* Aviso si no llegó nada; tabla si hay eventos *@
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">Todavía no se recibió ningún evento.</div> @* Aviso *@
+}
+else
+{
+    <div class="table-responsive"> @* Tabla desplazable *@
+        <table class="table bg-white align-middle small"> @* Tabla *@
+            <thead class="table-light"><tr><th>Recibido</th><th>Evento</th><th>Pedido</th><th>Estado recibido</th><th>Respuesta</th><th>Resultado</th></tr></thead> @* Encabezados *@
+            <tbody> @* Cuerpo *@
+                @* Una fila por evento *@
+                @foreach (var e in Model)
+                {
+                    <tr> @* Fila *@
+                        <td class="text-nowrap">@EstadoMapper.HoraArgentina(e.FechaRecepcion)</td> @* Cuándo llegó *@
+                        <td><code>@e.Evento</code></td> @* Tipo de evento *@
+                        <td>@e.PedidoId</td> @* Pedido indicado *@
+                        <td>@e.EstadoRecibido</td> @* Estado que vino en el aviso *@
+                        <td><span class="badge @(e.CodigoRespuesta == 200 ? "bg-success" : "bg-danger")">@e.CodigoRespuesta</span></td> @* Código HTTP: verde si fue 200, rojo si no *@
+                        <td>@e.Resultado</td> @* Explicación *@
+                    </tr> @* Fin de la fila *@
+                }
+            </tbody> @* Fin del cuerpo *@
+        </table> @* Fin de la tabla *@
+    </div> @* Fin del contenedor *@
+}

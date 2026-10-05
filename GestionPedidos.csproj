@@ -1,0 +1,16 @@
+<!-- Archivo de proyecto: le dice a .NET cómo compilar la aplicación y qué librerías usa -->
+<Project Sdk="Microsoft.NET.Sdk.Web"> <!-- "Sdk.Web" indica que es una aplicación web ASP.NET Core -->
+
+  <PropertyGroup> <!-- Grupo de configuraciones generales del proyecto -->
+    <TargetFramework>net10.0</TargetFramework> <!-- Versión de .NET que exige el challenge: .NET 10 -->
+    <Nullable>enable</Nullable> <!-- Activa avisos cuando algo podría ser null: ayuda a evitar errores -->
+    <ImplicitUsings>enable</ImplicitUsings> <!-- Agrega automáticamente los "using" más comunes (System, System.Linq, etc.) -->
+    <RootNamespace>GestionPedidos</RootNamespace> <!-- Nombre base de los namespaces del proyecto -->
+    <InvariantGlobalization>false</InvariantGlobalization> <!-- Mantiene soporte de idiomas/culturas (formatos de números y fechas) -->
+  </PropertyGroup> <!-- Fin de las configuraciones generales -->
+
+  <ItemGroup> <!-- Grupo donde se declaran las librerías externas (paquetes NuGet) -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" /> <!-- Conector de Entity Framework Core para PostgreSQL (trae EF Core incluido) -->
+  </ItemGroup> <!-- Fin de la lista de paquetes -->
+
+</Project> <!-- Fin del archivo de proyecto -->

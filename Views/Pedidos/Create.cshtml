@@ -1,0 +1,38 @@
+@* Formulario para crear un pedido asociado a un cliente *@
+@* La vista recibe un Pedido nuevo (puede venir con el ClienteId ya elegido) *@
+@model Pedido
+@{
+    ViewData["Title"] = "Nuevo pedido"; // Título de la pestaña
+}
+
+<h1 class="h3 mb-3">Nuevo pedido</h1> @* Título *@
+
+<div class="card"> @* Tarjeta del formulario *@
+    <div class="card-body"> @* Contenido *@
+        <form asp-action="Create" method="post"> @* Envía a POST /Pedidos/Create (incluye token anti-falsificación) *@
+            <div class="mb-3"> @* Bloque Cliente *@
+                <label asp-for="ClienteId" class="form-label"></label> @* Etiqueta "Cliente" *@
+                <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="form-select"> @* Combo con los clientes que armó el controlador *@
+                    <option value="0">— Elegí un cliente —</option> @* Opción vacía (vale 0 y la validación la rechaza) *@
+                </select> @* Fin del combo *@
+                <span asp-validation-for="ClienteId" class="text-danger small"></span> @* Error del campo *@
+            </div> @* Fin del bloque *@
+
+            <div class="mb-3"> @* Bloque Descripción *@
+                <label asp-for="Descripcion" class="form-label"></label> @* Etiqueta *@
+                <textarea asp-for="Descripcion" class="form-control" rows="3"></textarea> @* Área de texto de varias líneas *@
+                <span asp-validation-for="Descripcion" class="text-danger small"></span> @* Error del campo *@
+            </div> @* Fin del bloque *@
+
+            <div class="mb-3"> @* Bloque Monto *@
+                <label asp-for="Monto" class="form-label"></label> @* Etiqueta *@
+                <input asp-for="Monto" type="number" step="0.01" min="0.01" class="form-control" /> @* Número con 2 decimales *@
+                <span asp-validation-for="Monto" class="text-danger small"></span> @* Error del campo *@
+            </div> @* Fin del bloque *@
+
+            <p class="text-muted small">El pedido se crea en estado <strong>Pendiente</strong>.</p> @* Aclaración para el usuario *@
+            <button type="submit" class="btn btn-primary">Crear pedido</button> @* Envía el formulario *@
+            <a class="btn btn-link" asp-action="Index">Cancelar</a> @* Vuelve sin guardar *@
+        </form> @* Fin del formulario *@
+    </div> @* Fin del contenido *@
+</div> @* Fin de la tarjeta *@

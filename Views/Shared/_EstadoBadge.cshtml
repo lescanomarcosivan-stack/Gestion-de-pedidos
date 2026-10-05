@@ -1,0 +1,4 @@
+@* Vista parcial reutilizable: dibuja la etiqueta de color de un estado. Se usa con <partial name="_EstadoBadge" model="pedido.Estado" /> *@
+@* El modelo que recibe esta vista es un estado de pedido *@
+@model EstadoPedido
+<span class="badge @EstadoMapper.ColorBadge(Model)">@EstadoMapper.Nombre(Model)</span> @* Etiqueta con el color y el nombre amigable del estado *@

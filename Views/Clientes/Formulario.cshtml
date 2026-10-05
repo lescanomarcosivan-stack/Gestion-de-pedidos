@@ -1,0 +1,46 @@
+@* Formulario compartido para CREAR y EDITAR clientes (si Id es 0 es alta, si no es edición) *@
+@* La vista recibe un Cliente (vacío o con datos) *@
+@model Cliente
+@{
+    var esNuevo = Model.Id == 0; // true si estamos creando, false si estamos editando
+    ViewData["Title"] = esNuevo ? "Nuevo cliente" : "Editar cliente"; // Título según el caso
+    string? idRuta = esNuevo ? null : Model.Id.ToString(); // Id para la URL (null en el alta = no se agrega a la dirección)
+}
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1> @* Título de la página *@
+
+<div class="card"> @* Tarjeta que contiene el formulario *@
+    <div class="card-body"> @* Contenido de la tarjeta *@
+        <form asp-action="@(esNuevo ? "Create" : "Edit")" asp-route-id="@idRuta" method="post"> @* Envía a Create o a Edit/{id} por POST; agrega solo el token anti-falsificación *@
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div> @* Muestra errores generales (no ligados a un campo) *@
+
+            <div class="mb-3"> @* Bloque del campo Nombre *@
+                <label asp-for="Nombre" class="form-label"></label> @* Etiqueta: toma el texto de [Display] del modelo *@
+                <input asp-for="Nombre" class="form-control" /> @* Caja de texto ligada a la propiedad Nombre *@
+                <span asp-validation-for="Nombre" class="text-danger small"></span> @* Mensaje de error de este campo *@
+            </div> @* Fin del bloque *@
+
+            <div class="mb-3"> @* Bloque del campo Email *@
+                <label asp-for="Email" class="form-label"></label> @* Etiqueta *@
+                <input asp-for="Email" class="form-control" /> @* Caja de texto tipo email (por [EmailAddress]) *@
+                <span asp-validation-for="Email" class="text-danger small"></span> @* Error del campo *@
+            </div> @* Fin del bloque *@
+
+            <div class="row"> @* Fila con dos columnas *@
+                <div class="col-md-6 mb-3"> @* Columna Teléfono *@
+                    <label asp-for="Telefono" class="form-label"></label> @* Etiqueta *@
+                    <input asp-for="Telefono" class="form-control" /> @* Caja de texto *@
+                    <span asp-validation-for="Telefono" class="text-danger small"></span> @* Error del campo *@
+                </div> @* Fin de la columna *@
+                <div class="col-md-6 mb-3"> @* Columna Ciudad *@
+                    <label asp-for="Ciudad" class="form-label"></label> @* Etiqueta *@
+                    <input asp-for="Ciudad" class="form-control" /> @* Caja de texto *@
+                    <span asp-validation-for="Ciudad" class="text-danger small"></span> @* Error del campo *@
+                </div> @* Fin de la columna *@
+            </div> @* Fin de la fila *@
+
+            <button type="submit" class="btn btn-primary">Guardar</button> @* Envía el formulario *@
+            <a class="btn btn-link" asp-action="@(esNuevo ? "Index" : "Details")" asp-route-id="@idRuta">Cancelar</a> @* Vuelve sin guardar *@
+        </form> @* Fin del formulario *@
+    </div> @* Fin del contenido *@
+</div> @* Fin de la tarjeta *@
