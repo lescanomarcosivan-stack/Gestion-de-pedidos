@@ -69,6 +69,61 @@ public class DashboardViewModel // Se arma en HomeController.Index
     public List<HistorialEstado> UltimosCambios { get; set; } = new(); // Últimos cambios de estado (actividad reciente)
 } // Fin de la clase
 
+// Un renglón del formulario de nuevo pedido (lo que elige el usuario; el precio NO viaja: se toma de la base)
+public class ItemFormulario // Se recibe como lista: Items[0].ProductoId, Items[0].Cantidad, ...
+{ // Inicio de la clase
+    public int ProductoId { get; set; } // Producto elegido (0 = renglón vacío, se ignora)
+
+    [Range(1, 100000, ErrorMessage = "Cantidad entre 1 y 100.000")] // Al menos una unidad
+    public int Cantidad { get; set; } = 1; // Unidades
+
+    [Range(0, 100, ErrorMessage = "El descuento va de 0 a 100 %")] // Porcentaje válido
+    public decimal DescuentoPorcentaje { get; set; } // Descuento del renglón
+} // Fin de la clase
+
+// Formulario completo de nuevo pedido
+public class PedidoFormulario // Separado de Pedido para validar solo lo que escribe el usuario
+{ // Inicio de la clase
+    [Range(1, int.MaxValue, ErrorMessage = "Elegí un cliente")] // Debe elegir uno
+    [Display(Name = "Cliente")] // Etiqueta
+    public int ClienteId { get; set; } // Cliente del pedido
+
+    [StringLength(300, ErrorMessage = "Máximo 300 caracteres")] // Tamaño máximo
+    [Display(Name = "Observaciones")] // Etiqueta
+    public string? Observaciones { get; set; } // Texto libre opcional (si queda vacío se arma un resumen de los productos)
+
+    [Range(0, 100, ErrorMessage = "El descuento va de 0 a 100 %")] // Porcentaje válido
+    [Display(Name = "Descuento general (%)")] // Etiqueta
+    public decimal DescuentoPorcentaje { get; set; } // Descuento sobre el total
+
+    public List<ItemFormulario> Items { get; set; } = new() { new ItemFormulario() }; // Renglones (arranca con uno vacío)
+} // Fin de la clase
+
+// Formulario de ingreso o ajuste de stock
+public class MovimientoFormulario // Datos de la pantalla "Mover stock"
+{ // Inicio de la clase
+    public int ProductoId { get; set; } // Producto (viaja oculto)
+
+    [Display(Name = "Tipo")] // Etiqueta
+    public TipoMovimiento Tipo { get; set; } = TipoMovimiento.Ingreso; // Ingreso o Ajuste (las ventas y devoluciones son automáticas)
+
+    [Range(-100000, 100000, ErrorMessage = "Cantidad fuera de rango")] // Límite razonable
+    [Display(Name = "Cantidad")] // Etiqueta
+    public int Cantidad { get; set; } // Ingreso: unidades que entran (positivo). Ajuste: puede ser negativo (rotura, pérdida)
+
+    [StringLength(300)] // Tamaño máximo
+    [Display(Name = "Motivo")] // Etiqueta
+    public string? Motivo { get; set; } // Por qué (obligatorio en ajustes)
+} // Fin de la clase
+
+// Pantalla de detalle de producto
+public class ProductoDetalleViewModel // Producto + sus movimientos + formulario para mover stock
+{ // Inicio de la clase
+    public Producto Producto { get; set; } = null!; // El producto
+    public List<MovimientoStock> Movimientos { get; set; } = new(); // Últimos movimientos
+    public MovimientoFormulario Movimiento { get; set; } = new(); // Formulario de ingreso/ajuste
+} // Fin de la clase
+
 // Formulario de inicio de sesión
 public class LoginViewModel // Datos que escribe el usuario en la pantalla de login
 { // Inicio de la clase

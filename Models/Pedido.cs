@@ -33,4 +33,13 @@ public class Pedido // Clase pública
 
     [Display(Name = "Última actualización")] // Etiqueta para mostrar
     public DateTime FechaActualizacion { get; set; } = DateTime.UtcNow; // Cuándo cambió por última vez (UTC)
+
+    [Range(0, 100)] // Entre 0 % y 100 %
+    [Display(Name = "Descuento general (%)")] // Etiqueta
+    public decimal DescuentoPorcentaje { get; set; } // Descuento sobre el total del pedido (además del descuento de cada producto)
+
+    [ValidateNever] // MVC no valida esta lista
+    public List<PedidoItem> Items { get; set; } = new(); // Productos del pedido (los pedidos viejos, de antes de esta versión, no tienen)
+
+    public decimal Subtotal => Items.Sum(i => i.Subtotal); // Calculado (no es columna): suma de los renglones antes del descuento general
 } // Fin de la clase

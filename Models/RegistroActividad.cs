@@ -8,7 +8,8 @@ public enum TipoRegistro // Se guarda como texto en la base
     Acceso,    // Inicios y cierres de sesión, intentos fallidos, accesos denegados
     Actividad, // Cambios que hacen los usuarios (altas, ediciones, cambios de estado, roles)
     Webhook,   // Avisos recibidos desde sistemas externos
-    Error      // Errores inesperados de la aplicación
+    Error,     // Errores inesperados de la aplicación
+    Email      // Notificaciones enviadas (o que no se pudieron enviar)
 } // Fin de la lista
 
 // Bitácora general: todo lo importante que pasa en el sistema queda registrado acá

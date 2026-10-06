@@ -30,6 +30,9 @@ public class Cliente // Clase pública para poder usarla desde controladores y v
     [Display(Name = "Fecha de alta")] // Etiqueta para mostrar
     public DateTime FechaAlta { get; set; } = DateTime.UtcNow; // Fecha de creación en UTC (PostgreSQL exige UTC)
 
+    [Display(Name = "Recibe notificaciones por email")] // Etiqueta del formulario
+    public bool NotificarPorEmail { get; set; } // Consentimiento: solo se le escribe si está marcado (los clientes viejos quedan en false)
+
     [ValidateNever] // Le dice a MVC: no valides esta lista al recibir el formulario
     public List<Pedido> Pedidos { get; set; } = new(); // Relación 1 a muchos: un cliente tiene muchos pedidos
 } // Fin de la clase
