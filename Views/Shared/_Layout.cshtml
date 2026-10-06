@@ -109,5 +109,32 @@
 
     <footer class="text-center small pb-4" style="color: var(--gris-azulado)">Challenge Fullstack · ASP.NET Core + PostgreSQL</footer> @* Pie de página *@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> @* JavaScript de Bootstrap (menú plegable, cerrar alertas) *@
+    <script>
+        // Botón "ojito" para ver u ocultar la contraseña. Se agrega solo a TODOS los campos de contraseña de la app
+        var ojoAbierto = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'; // Dibujo del ojo abierto
+        var ojoCerrado = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'; // Dibujo del ojo tachado
+        document.querySelectorAll('input[type="password"]').forEach(function (campo) { // Recorre cada campo de contraseña de la página
+            var grupo = document.createElement('div'); // Crea un contenedor nuevo...
+            grupo.className = 'input-group'; // ...con el estilo de Bootstrap que pega el botón al campo
+            campo.parentNode.insertBefore(grupo, campo); // Pone el contenedor donde estaba el campo
+            grupo.appendChild(campo); // Mete el campo adentro del contenedor
+            var boton = document.createElement('button'); // Crea el botón del ojito
+            boton.type = 'button'; // "button" = no envía el formulario al tocarlo
+            boton.className = 'btn btn-outline-secondary'; // Estilo azulado de la app
+            boton.title = 'Mostrar contraseña'; // Texto de ayuda al pasar el mouse
+            boton.setAttribute('aria-label', 'Mostrar contraseña'); // Texto para lectores de pantalla
+            boton.innerHTML = ojoAbierto; // Arranca mostrando el ojo abierto
+            boton.addEventListener('click', function () { // Qué pasa al tocar el botón
+                var oculta = campo.type === 'password'; // ¿La contraseña está oculta ahora?
+                campo.type = oculta ? 'text' : 'password'; // Si estaba oculta, se muestra; si se veía, se oculta
+                boton.innerHTML = oculta ? ojoCerrado : ojoAbierto; // Cambia el dibujo del ojo
+                var texto = oculta ? 'Ocultar contraseña' : 'Mostrar contraseña'; // Texto nuevo del botón
+                boton.title = texto; // Actualiza la ayuda
+                boton.setAttribute('aria-label', texto); // Actualiza el texto accesible
+                campo.focus(); // Devuelve el cursor al campo para seguir escribiendo
+            }); // Fin del clic
+            grupo.appendChild(boton); // Pone el botón a la derecha del campo
+        }); // Fin del recorrido
+    </script>
 </body> @* Fin del cuerpo *@
 </html> @* Fin del documento *@
