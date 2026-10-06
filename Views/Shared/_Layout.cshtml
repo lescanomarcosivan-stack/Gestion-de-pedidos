@@ -77,6 +77,7 @@
                         <li class="nav-item"><a class="nav-link @(controlador == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")" asp-controller="Home" asp-action="Index">Dashboard</a></li> @* Dashboard *@
                         <li class="nav-item"><a class="nav-link @(controlador == "Clientes" ? "active" : "")" asp-controller="Clientes" asp-action="Index">Clientes</a></li> @* Clientes *@
                         <li class="nav-item"><a class="nav-link @(controlador == "Pedidos" ? "active" : "")" asp-controller="Pedidos" asp-action="Index">Pedidos</a></li> @* Pedidos *@
+                        <li class="nav-item"><a class="nav-link @(controlador == "Productos" ? "active" : "")" asp-controller="Productos" asp-action="Index">Productos</a></li> @* Productos y stock *@
                         <li class="nav-item"><a class="nav-link @(controlador == "Home" && ViewContext.RouteData.Values["action"]?.ToString() != "Index" ? "active" : "")" asp-controller="Home" asp-action="Webhooks">Webhooks</a></li> @* Historial y prueba del webhook *@
                         @* Opciones solo para administradores *@
                         @if (esAdmin)
