@@ -36,6 +36,10 @@ builder.Services.AddHttpClient<ITrackingService, TrackingService>(cliente => // 
 builder.Services.AddHttpClient<IEnviadorEmail, EnviadorEmail>(c => c.Timeout = TimeSpan.FromSeconds(10)); // Cliente HTTP para enviar emails (Brevo)
 builder.Services.AddHttpClient("interno", c => c.BaseAddress = new Uri($"http://localhost:{puerto}/")); // Cliente HTTP para que la pantalla "Probar webhook" llame a nuestro propio webhook
 builder.Services.AddScoped<IAuditoria, Auditoria>(); // Bitácora: una instancia por pedido HTTP (comparte el DbContext)
+builder.Services.AddScoped<IStockService, StockService>(); // Stock: una instancia por pedido HTTP (comparte el DbContext, así todo se guarda junto)
+builder.Services.AddSingleton<ColaEmails>(); // Cola de emails: una sola para toda la app
+builder.Services.AddHostedService<EnvioEmailsWorker>(); // Trabajador en segundo plano que envía los emails de la cola
+builder.Services.AddScoped<INotificador, Notificador>(); // Arma los emails y los deja en la cola
 builder.Services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>(); // Cifrador de contraseñas de Microsoft (PBKDF2 + sal aleatoria + 100.000 iteraciones)
 builder.Services.AddExceptionHandler<ManejadorErrores>(); // Guarda en la bitácora los errores no controlados
 builder.Services.AddProblemDetails(); // Formato estándar de errores (lo requiere el manejador de excepciones)
@@ -140,7 +144,9 @@ using (var scope = app.Services.CreateScope()) // Crea un "ámbito" temporal par
                 await db.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS \"HistorialEstados\", \"RegistrosActividad\", \"Usuarios\", \"EventosWebhook\", \"Pedidos\", \"Clientes\" CASCADE"); // Borra solo las tablas de esta app (son datos de demostración)
             } // Fin del bloque de actualización
             await db.Database.EnsureCreatedAsync(); // Crea las tablas si no existen (no borra nada si ya están)
+            await ActualizacionesBase.AplicarAsync(db); // Agrega tablas y columnas nuevas a una base existente, SIN borrar datos
             await DatosIniciales.CargarUsuariosAsync(db, hasher, app.Configuration); // Crea los usuarios demo si no hay usuarios
+            await DatosIniciales.CargarProductosAsync(db); // Crea productos de ejemplo si no hay productos
             await DatosIniciales.CargarAsync(db); // Carga clientes y pedidos de ejemplo si la base está vacía
             break; // Salió bien: salimos del ciclo
         } // Fin del try

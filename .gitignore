@@ -1,0 +1,7 @@
+# Archivos que Git no debe subir al repositorio (se generan al compilar o son personales)
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+appsettings.Development.json

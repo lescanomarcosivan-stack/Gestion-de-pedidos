@@ -35,6 +35,15 @@ Las cuentas nuevas (con **Crear cuenta** o **Ingresar con Google**) quedan **ina
 - Los pedidos **cancelados** se muestran en rojo y con el monto tachado en todas las pantallas.
 - Montos en formato argentino (`$ 1.234,56`) y fechas en hora de Argentina.
 
+**Productos y stock (versión 3)**
+- Catálogo de **productos** con código, precio, stock y stock mínimo; alta, edición y activar/desactivar.
+- Pedidos con **varios productos**: cantidad, **precio unitario** (copiado del catálogo al vender), **descuento por renglón** y **descuento general**. El total se calcula en pantalla y se recalcula en el servidor con los precios de la base.
+- **Control de stock**: al crear el pedido se descuenta; si se **cancela** (manual o webhook) se devuelve; si se **reabre**, se vuelve a descontar (si no alcanza, no deja). No permite vender más de lo que hay.
+- **Movimientos de stock** (ingresos, ventas, devoluciones y ajustes con motivo), con historial por producto.
+- **Control de concurrencia** en productos (columna de sistema `xmin` de PostgreSQL): si dos usuarios modifican el mismo producto o stock a la vez, el segundo recibe un aviso en lugar de pisar al primero.
+- **Notificaciones por email** en segundo plano (cola + worker): al **cliente** (si aceptó recibirlas) cuando se crea, envía, entrega o cancela su pedido; al **equipo** (`Notificaciones__EmailsInternos`) por pedido nuevo, cancelación y **stock bajo**. Cada envío queda en *Registro* (tipo Email).
+- **Reportes Excel (.xlsx) y PDF** de pedidos (con los filtros del listado) y de stock, generados por la propia app sin librerías externas.
+
 **Usabilidad**
 - Si la fecha "Desde" es posterior a "Hasta" se muestra un error, sin listar resultados.
 - Botón **Limpiar filtros** en todos los listados.
@@ -119,6 +128,7 @@ Cada evento queda en *Webhooks* con una marca **✓ Procesado** o **✗ Rechazad
 | `Autenticacion__Google__ClientId` / `__ClientSecret` | No | Activa "Ingresar con Google" |
 | `Email__BrevoApiKey` / `Email__Remitente` | No | Envío de emails por la API de Brevo. Sin esto, el enlace de recuperación queda en los logs del servidor |
 | `Registro__AprobacionAutomatica` | No | `false` por defecto: las cuentas nuevas requieren aprobación del administrador. `true`: se activan solas con rol Consulta |
+| `Notificaciones__EmailsInternos` | No | Emails del equipo separados por coma (pedido nuevo, cancelado, stock bajo) |
 | `Tracking__BaseUrl` | No | API de seguimiento real (vacío = mock incluido) |
 
 > Los emails se envían por la API HTTP de Brevo porque Railway bloquea SMTP en los planes que no son Pro.
@@ -127,7 +137,9 @@ Cada evento queda en *Webhooks* con una marca **✓ Procesado** o **✗ Rechazad
 
 Las tablas se crean solas al iniciar (`EnsureCreated`). Si la app detecta tablas de una versión anterior, las recrea con datos de ejemplo (es una base de demostración). En un sistema productivo se usarían **migraciones** de EF Core.
 
-Tablas: `Clientes`, `Pedidos`, `HistorialEstados`, `EventosWebhook`, `Usuarios`, `RegistrosActividad`.
+Tablas: `Clientes`, `Pedidos`, `PedidoItems`, `Productos`, `MovimientosStock`, `HistorialEstados`, `EventosWebhook`, `Usuarios`, `RegistrosActividad`.
+
+Las tablas y columnas de la versión 3 se agregan a una base existente con `Data/ActualizacionesBase.cs` (SQL con `IF NOT EXISTS`), **sin borrar datos**.
 
 ## Estructura
 

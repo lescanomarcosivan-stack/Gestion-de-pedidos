@@ -127,3 +127,33 @@ Sin esto, la recuperación funciona igual, pero el enlace **no llega por email**
 - URL del webhook: `https://gestion-de-pedidos-production.up.railway.app/api/webhooks/orders`
 - La clave del webhook (`Webhook__Secret`) y cómo firmar (está en el README).
 - URL del repositorio de GitHub.
+
+---
+
+# Versión 3: productos, stock, emails y reportes
+
+**Esta actualización NO borra datos.** La app agrega sola las tablas y columnas nuevas, y carga 8 productos de ejemplo si no hay ninguno. Usuarios, clientes, pedidos e historial se conservan.
+
+## Subir la versión 3
+1. Descomprimí el zip nuevo y entrá a la carpeta hasta ver `Controllers`, `Views`, `Program.cs`, etc.
+2. En GitHub: **Add file → Upload files**, arrastrá todo el contenido y tocá **Commit changes**.
+3. En Railway (proyecto **genuine-friendship**), esperá a que el deploy diga **Active**.
+
+## Variable nueva (opcional)
+| Nombre | Valor |
+|---|---|
+| `Notificaciones__EmailsInternos` | Los emails del equipo que reciben avisos (pedido nuevo, cancelado, stock bajo), separados por coma. Ej.: `tuemail@gmail.com` |
+
+Los emails solo salen de verdad si configuraste Brevo (Parte 6). Si no, igual quedan registrados en **Registro → tipo Email** como "Email NO enviado".
+
+## Probar lo nuevo (checklist)
+- [ ] Menú **Productos**: aparecen 8 productos y un aviso rojo de stock bajo.
+- [ ] Abrí un producto → **Mover stock** → Ingreso de 10 → el stock sube y aparece en el historial.
+- [ ] **Pedidos → + Nuevo pedido**: agregá dos productos, poné un descuento en un renglón y un descuento general. El total se calcula en vivo.
+- [ ] Pedí más cantidad que el stock: el número se pone en rojo y al guardar avisa "Stock insuficiente".
+- [ ] Guardá el pedido: el stock de esos productos baja.
+- [ ] Cancelá ese pedido: el stock vuelve. Reabrilo (estado Pendiente): se descuenta de nuevo.
+- [ ] **Pedidos → ⬇ Excel / ⬇ PDF**: se descargan con los filtros que tengas puestos.
+- [ ] **Productos → ⬇ Excel / ⬇ PDF**: reporte de stock.
+- [ ] Editá un cliente y marcá **Recibe notificaciones por email**. Los clientes de ejemplo vienen sin marcar, a propósito.
+- [ ] **Registro → tipo Email**: se ven los avisos generados.

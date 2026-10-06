@@ -334,3 +334,71 @@ await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Actividad, "Consulta de ped
 
 **Ejercicio E — Explicá qué pasa si borrás `[AllowAnonymous]` de `TrackingMockController`.**
 El detalle del pedido muestra un aviso amarillo de error en el seguimiento: el servidor llama a la API **sin cookie de sesión**, la regla global exige sesión y la llamada se redirige al login, que devuelve una página HTML en lugar del JSON esperado. Es un buen ejemplo de por qué la FallbackPolicy afecta a todo.
+
+
+---
+
+## 8. Versión 3 — productos, stock, emails y reportes
+
+### 8.1 Archivos nuevos
+1. `Models/Producto.cs`, `Models/PedidoItem.cs`, `Models/MovimientoStock.cs` — las tablas nuevas.
+2. `Models/Pedido.cs` — ahora tiene `Items` (renglones) y `DescuentoPorcentaje`.
+3. `Services/Calculos.cs` — **el único lugar** donde se calcula el total (pantalla, reportes y emails dan siempre lo mismo).
+4. `Services/StockService.cs` — todas las entradas y salidas de stock.
+5. `Controllers/PedidosController.cs` (`Create` y `CambiarEstado`) y `Controllers/ProductosController.cs`.
+6. `Services/ColaEmails.cs` y `Services/Notificador.cs` — emails en segundo plano.
+7. `Services/Reporte.cs`, `ExportadorExcel.cs`, `ExportadorPdf.cs` — reportes.
+8. `Data/ActualizacionesBase.cs` — cómo se actualizó la base sin borrar datos.
+9. `Views/Pedidos/Create.cshtml` — el formulario con renglones dinámicos (JavaScript).
+
+### 8.2 Preguntas probables
+
+**¿Por qué el pedido guarda una copia del nombre y del precio del producto?**
+Porque los precios cambian. Si mañana la yerba sube, el pedido de ayer tiene que seguir mostrando el precio al que se vendió. Por eso `PedidoItem` guarda `PrecioUnitario` y `ProductoNombre` del momento de la venta.
+
+**¿El precio lo manda el navegador?**
+No. El navegador solo manda qué producto y cuántas unidades. El servidor lee el precio de la base (`productos[r.ProductoId].Precio`). Si alguien modificara el HTML para poner un precio menor, no serviría de nada. El cálculo en pantalla es solo para que el usuario vea el total.
+
+**¿Cómo se calcula el total?**
+Por renglón: `cantidad × precio × (1 − descuento %)`. Después se suman los renglones y se aplica el descuento general: `subtotal × (1 − descuento general %)`. Todo con `decimal` y redondeado a centavos (`Calculos.TotalPedido`).
+
+**¿Cuándo se mueve el stock?**
+- Al **crear** el pedido: se descuenta (venta).
+- Al **cancelar** (desde la pantalla o por webhook): se devuelve (devolución).
+- Al **reabrir** un cancelado: se vuelve a descontar. Si ya no alcanza, no deja reabrir (por webhook responde 409).
+- Los demás cambios (Pendiente → Enviado → Entregado) no mueven stock: ya se descontó al crear.
+
+**¿Qué pasa si piden más de lo que hay?**
+`StockService.DescontarAsync` revisa **todos** los productos antes de tocar nada. Si uno no alcanza, no descuenta ninguno y devuelve los errores ("pediste 20 y hay 12").
+
+**¿Por qué hay una tabla de movimientos si ya está el campo Stock?**
+Para poder auditar: cada número de stock tiene su explicación (quién, cuándo, por qué, qué pedido). Es como un libro contable: el saldo (Stock) siempre se puede reconstruir sumando los movimientos.
+
+**¿Cómo evitás que dos usuarios vendan la última unidad al mismo tiempo?**
+Con **concurrencia optimista**. `Producto.Version` está marcado con `[Timestamp]`, y PostgreSQL lo mapea a su columna de sistema `xmin`, que cambia cada vez que se modifica la fila. Al guardar, EF agrega `WHERE xmin = <valor que leí>`. Si otro usuario modificó el producto en el medio, no se actualiza ninguna fila, EF lanza `DbUpdateConcurrencyException` y la app avisa "el stock cambió, volvé a intentar" en vez de dejar el stock mal. Lo mismo protege la edición de productos: el formulario lleva la versión en un campo oculto.
+
+**¿Por qué todo se guarda en un solo SaveChanges?**
+Pedido + renglones + movimientos de stock + historial se guardan juntos en una transacción: o se guarda todo o nada. Nunca puede quedar un pedido sin descontar stock, ni stock descontado sin pedido.
+
+**¿Cómo funcionan los emails?**
+El controlador **no envía**: deja el mensaje en una cola (`ColaEmails`, un `Channel` en memoria) y responde enseguida. Un `BackgroundService` (`EnvioEmailsWorker`) toma los mensajes de a uno y los envía por la API de Brevo. Así el usuario no espera, y si Brevo falla, el pedido igual se guarda. Cada envío queda en el Registro.
+Limitación: la cola está en memoria. Si la app se reinicia justo con emails pendientes, esos se pierden. En un sistema grande se usaría una cola persistente (una tabla, RabbitMQ, etc.).
+
+**¿Por qué el cliente tiene la casilla "Recibe notificaciones"?**
+Por consentimiento: solo se escribe a quien aceptó. Además, los clientes de ejemplo tienen emails de dominios reales, y no corresponde mandarles correos a desconocidos.
+
+**¿Cómo se genera el Excel sin librerías?**
+Un `.xlsx` es un ZIP con archivos XML adentro (formato Office Open XML). `ExportadorExcel` arma ese ZIP con `ZipArchive`: el libro, una hoja y los estilos (negrita, fondo celeste, formato de moneda). Los números se guardan como números de verdad, así en Excel se pueden sumar y filtrar.
+
+**¿Y el PDF?**
+`ExportadorPdf` escribe el formato PDF directamente: texto con la fuente Helvetica (incluida en todos los lectores de PDF, por eso no hay que adjuntar fuentes), rectángulos y líneas, con paginación y "Página X de Y". Se eligió esto en vez de una librería para no depender de componentes nativos en el servidor. La contra: el diseño es más simple que con una librería de reportes.
+
+**¿Cómo actualizaste la base sin borrar datos?**
+`EnsureCreated` no modifica tablas que ya existen. Por eso `ActualizacionesBase` ejecuta SQL con `CREATE TABLE IF NOT EXISTS` y `ADD COLUMN IF NOT EXISTS`: en una base vieja agrega lo que falta, en una base nueva no hace nada. Es una "migración manual". Lo profesional sería usar **migraciones de EF Core** (`dotnet ef migrations add`), que generan este SQL automáticamente y llevan registro de qué versión tiene cada base.
+
+### 8.3 Ejercicios
+**A — Que los ajustes de stock solo los pueda hacer el administrador.** En `ProductosController.Mover`, cambiá `Authorize(Roles = Roles.Edicion)` por `Authorize(Roles = Roles.Administrador)`.
+
+**B — Limitar el descuento por renglón a 30 %.** En `Models/ViewModels.cs`, en `ItemFormulario`, cambiá `[Range(0, 100, ...)]` por `[Range(0, 30, ErrorMessage = "Máximo 30 %")]`.
+
+**C — Avisar también al cliente cuando el pedido pasa a "En preparación".** En `Services/Notificador.cs`, agregá `EstadoPedido.EnPreparacion` al arreglo `EstadosQueAvisanAlCliente` y un caso en el `switch` del texto.

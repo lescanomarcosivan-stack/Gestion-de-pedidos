@@ -1,0 +1,7 @@
+# Archivos que NO se copian al contenedor (no hacen falta y lo harían más pesado)
+bin/
+obj/
+.git/
+.vs/
+.vscode/
+*.md
