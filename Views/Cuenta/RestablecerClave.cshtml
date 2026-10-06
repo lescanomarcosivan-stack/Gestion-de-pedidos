@@ -1,0 +1,25 @@
+@* Pantalla para elegir la contraseña nueva (se llega desde el enlace del email) *@
+@* La vista recibe email y token (ocultos) y la contraseña nueva *@
+@model RestablecerClaveViewModel
+@{
+    ViewData["Title"] = "Nueva contraseña"; // Título de la pestaña
+}
+
+<div class="row justify-content-center"> @* Centra la tarjeta *@
+    <div class="col-md-6 col-lg-4"> @* Ancho *@
+        <h1 class="h3 text-center mb-4">Nueva contraseña</h1> @* Título *@
+        <div class="card shadow-sm"> @* Tarjeta *@
+            <div class="card-body p-4"> @* Contenido *@
+                <form asp-action="RestablecerClave" method="post"> @* POST /Cuenta/RestablecerClave *@
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div> @* Errores generales (ej. enlace vencido) *@
+                    <input type="hidden" asp-for="Email" /> @* Email oculto *@
+                    <input type="hidden" asp-for="Token" /> @* Código secreto oculto *@
+                    <p class="small">Cuenta: <strong>@Model.Email</strong></p> @* Para qué cuenta es *@
+                    <div class="mb-3"><label asp-for="Password" class="form-label"></label><input asp-for="Password" class="form-control" autocomplete="new-password" /><span asp-validation-for="Password" class="text-danger small"></span></div> @* Contraseña nueva *@
+                    <div class="mb-3"><label asp-for="ConfirmarPassword" class="form-label"></label><input asp-for="ConfirmarPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="ConfirmarPassword" class="text-danger small"></span></div> @* Repetir *@
+                    <button type="submit" class="btn btn-primary w-100">Guardar contraseña</button> @* Envía *@
+                </form> @* Fin del formulario *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

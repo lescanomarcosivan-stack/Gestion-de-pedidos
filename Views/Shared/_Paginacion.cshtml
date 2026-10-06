@@ -1,0 +1,34 @@
+@* Vista parcial reutilizable: botones de paginación que conservan los filtros de la URL *@
+@* Recibe los datos de paginación (página actual, total, etc.) *@
+@model InfoPaginacion
+@{
+    // Arma la URL de una página: copia todos los parámetros actuales (filtros) y reemplaza "pagina"
+    string UrlPagina(int numero) // Función local de la vista
+    {
+        var pares = Context.Request.Query // Parámetros de la URL actual...
+            .Where(p => p.Key != "pagina") // ...menos la página...
+            .SelectMany(p => p.Value.Select(v => new KeyValuePair<string, string?>(p.Key, v))) // ...uno por valor...
+            .Append(new KeyValuePair<string, string?>("pagina", numero.ToString())); // ...más la página nueva
+        return Context.Request.Path + QueryString.Create(pares).ToUriComponent(); // Ruta + "?filtros&pagina=N"
+    }
+    var desde = Math.Max(1, Model.Pagina - 2); // Primer número de página a mostrar
+    var hasta = Math.Min(Model.TotalPaginas, Model.Pagina + 2); // Último número de página a mostrar
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2"> @* Fila: texto a la izquierda, botones a la derecha *@
+    <span class="small" style="color: var(--gris-azulado)">Mostrando @Model.Desde–@Model.Hasta de @Model.Total</span> @* "Mostrando 11–20 de 25" *@
+    @* Solo mostramos botones si hay más de una página *@
+    @if (Model.TotalPaginas > 1)
+    {
+        <nav aria-label="Paginación"> @* Bloque de navegación accesible *@
+            <ul class="pagination pagination-sm mb-0"> @* Lista de botones de Bootstrap *@
+                <li class="page-item @(Model.Pagina == 1 ? "disabled" : "")"><a class="page-link" href="@UrlPagina(Model.Pagina - 1)">‹ Anterior</a></li> @* Página anterior (deshabilitado en la primera) *@
+                @* Un botón por número de página cercano a la actual *@
+                @for (var i = desde; i <= hasta; i++)
+                {
+                    <li class="page-item @(i == Model.Pagina ? "active" : "")"><a class="page-link" href="@UrlPagina(i)">@i</a></li> @* Número de página; la actual queda resaltada *@
+                }
+                <li class="page-item @(Model.Pagina == Model.TotalPaginas ? "disabled" : "")"><a class="page-link" href="@UrlPagina(Model.Pagina + 1)">Siguiente ›</a></li> @* Página siguiente (deshabilitado en la última) *@
+            </ul> @* Fin de la lista *@
+        </nav> @* Fin del bloque *@
+    }
+</div> @* Fin de la fila *@

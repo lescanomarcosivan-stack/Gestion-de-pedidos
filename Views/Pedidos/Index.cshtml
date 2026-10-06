@@ -1,23 +1,30 @@
-@* Listado de pedidos con buscador y filtros por estado y fechas *@
-@* La vista recibe la lista de pedidos (cada uno con su cliente) *@
-@model List<Pedido>
+@* Listado de pedidos con buscador, filtros por estado y fechas, y paginación *@
+@* La vista recibe los pedidos de la página actual + datos de paginación y filtros *@
+@model PedidosListadoViewModel
 @{
     ViewData["Title"] = "Pedidos"; // Título de la pestaña
     var estadoElegido = ViewBag.Estado as EstadoPedido?; // Estado que estaba filtrado (o null)
+    var puedeEditar = User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.Operador); // Solo admin y operador ven los botones de carga
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3"> @* Fila de título y botón *@
     <h1 class="h3 mb-0">Pedidos</h1> @* Título *@
-    <a class="btn btn-primary" asp-action="Create">+ Nuevo pedido</a> @* Botón para crear pedido *@
+    @* El botón de crear solo aparece si el rol lo permite *@
+    @if (puedeEditar)
+    {
+        <a class="btn btn-primary" asp-action="Create">+ Nuevo pedido</a> @* Botón para crear pedido *@
+    }
 </div> @* Fin de la fila *@
 
-<form method="get" class="row g-2 mb-3"> @* Filtros: viajan en la URL por GET *@
-    <div class="col-md-4"> @* Columna buscador *@
+<form method="get" class="row g-2 mb-3 align-items-end"> @* Filtros: viajan en la URL por GET *@
+    <div class="col-md-3"> @* Columna buscador *@
+        <label class="form-label small mb-1">Buscar</label> @* Etiqueta *@
         <input name="q" value="@ViewBag.Q" class="form-control" placeholder="N° de pedido, descripción o cliente" /> @* Texto a buscar *@
     </div> @* Fin de la columna *@
-    <div class="col-md-3"> @* Columna estado *@
+    <div class="col-md-2"> @* Columna estado *@
+        <label class="form-label small mb-1">Estado</label> @* Etiqueta *@
         <select name="estado" class="form-select"> @* Combo de estados *@
-            <option value="">Todos los estados</option> @* Sin filtro *@
+            <option value="">Todos</option> @* Sin filtro *@
             @* Una opción por cada valor del enum EstadoPedido *@
             @foreach (var e in Enum.GetValues<EstadoPedido>())
             {
@@ -26,41 +33,64 @@
         </select> @* Fin del combo *@
     </div> @* Fin de la columna *@
     <div class="col-md-2"> @* Columna fecha desde *@
-        <input type="date" name="desde" value="@ViewBag.Desde" class="form-control" title="Desde" /> @* Selector de fecha "desde" *@
+        <label class="form-label small mb-1" for="desde">Desde</label> @* Etiqueta *@
+        <input type="date" id="desde" name="desde" value="@ViewBag.Desde" class="form-control @(Model.ErrorFiltro is null ? "" : "is-invalid")" /> @* Fecha "desde" (en rojo si el rango es inválido) *@
     </div> @* Fin de la columna *@
     <div class="col-md-2"> @* Columna fecha hasta *@
-        <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control" title="Hasta" /> @* Selector de fecha "hasta" *@
+        <label class="form-label small mb-1" for="hasta">Hasta</label> @* Etiqueta *@
+        <input type="date" id="hasta" name="hasta" value="@ViewBag.Hasta" class="form-control @(Model.ErrorFiltro is null ? "" : "is-invalid")" /> @* Fecha "hasta" (en rojo si el rango es inválido) *@
     </div> @* Fin de la columna *@
-    <div class="col-md-1 d-grid"> @* Columna botón *@
-        <button class="btn btn-outline-secondary">Filtrar</button> @* Aplica los filtros *@
+    <div class="col-md-3 d-flex gap-2"> @* Columna botones *@
+        <button class="btn btn-primary flex-fill">Filtrar</button> @* Aplica los filtros *@
+        <a class="btn btn-outline-secondary flex-fill @(Model.HayFiltros ? "" : "disabled")" asp-action="Index">✕ Limpiar filtros</a> @* Vuelve al listado sin filtros (deshabilitado si no hay filtros) *@
     </div> @* Fin de la columna *@
 </form> @* Fin del formulario *@
 
-@* Aviso si no hay resultados; tabla si los hay *@
-@if (Model.Count == 0)
+@* Cuatro situaciones posibles: filtro inválido, base vacía, filtros sin resultados, o hay resultados *@
+@if (Model.ErrorFiltro is not null)
 {
-    <div class="alert alert-info">No hay pedidos con esos filtros.</div> @* Aviso *@
+    <div class="alert alert-danger"><strong>Filtro inválido.</strong> @Model.ErrorFiltro</div> @* Error de rango de fechas *@
+}
+else if (!Model.ExistenPedidos)
+{
+    <div class="alert alert-info"> @* La base no tiene ningún pedido *@
+        <strong>Todavía no hay pedidos cargados.</strong> @* Mensaje *@
+        @* Botón para crear el primero (solo si el rol lo permite) *@
+        @if (puedeEditar)
+        {
+            <a asp-action="Create" class="alert-link ms-1">Crear el primer pedido</a> @* Enlace *@
+        }
+    </div> @* Fin del aviso *@
+}
+else if (Model.Paginacion.Total == 0)
+{
+    <div class="alert alert-info"> @* Hay pedidos, pero ninguno cumple los filtros *@
+        <strong>Ningún pedido coincide con los filtros aplicados.</strong> @* Mensaje *@
+        <a asp-action="Index" class="alert-link ms-1">Limpiar filtros</a> @* Enlace para volver a ver todo *@
+    </div> @* Fin del aviso *@
 }
 else
 {
-    <p class="text-muted small">@Model.Count pedido(s)</p> @* Cantidad de resultados *@
-    <div class="table-responsive"> @* Tabla desplazable en celular *@
-        <table class="table table-hover bg-white align-middle"> @* Tabla *@
-            <thead class="table-light"><tr><th>#</th><th>Cliente</th><th>Descripción</th><th class="text-end">Monto</th><th>Estado</th><th>Actualizado</th></tr></thead> @* Encabezados *@
-            <tbody> @* Cuerpo *@
-                @* Una fila por pedido *@
-                @foreach (var p in Model)
-                {
-                    <tr> @* Fila *@
-                        <td><a asp-action="Details" asp-route-id="@p.Id">@p.Id</a></td> @* Número con enlace al detalle *@
-                        <td><a asp-controller="Clientes" asp-action="Details" asp-route-id="@p.ClienteId">@p.Cliente?.Nombre</a></td> @* Cliente con enlace a su ficha *@
-                        <td>@p.Descripcion</td> @* Descripción *@
-                        <td class="text-end">$ @p.Monto.ToString("N2")</td> @* Monto *@
-                        <td><partial name="_EstadoBadge" model="p.Estado" /></td> @* Etiqueta del estado *@
-                        <td>@EstadoMapper.HoraArgentina(p.FechaActualizacion)</td> @* Último cambio *@
-                    </tr> @* Fin de la fila *@
-                }
-            </tbody> @* Fin del cuerpo *@
-        </table> @* Fin de la tabla *@
-    </div> @* Fin del contenedor *@
+    <div class="card"> @* Tarjeta que contiene la tabla *@
+        <div class="table-responsive"> @* Tabla desplazable en celular *@
+            <table class="table table-hover align-middle mb-0"> @* Tabla *@
+                <thead><tr><th>#</th><th>Cliente</th><th>Descripción</th><th class="text-end">Monto</th><th>Estado</th><th>Actualizado</th></tr></thead> @* Encabezados *@
+                <tbody> @* Cuerpo *@
+                    @* Una fila por pedido de la página actual *@
+                    @foreach (var p in Model.Pedidos)
+                    {
+                        <tr> @* Fila *@
+                            <td><a asp-action="Details" asp-route-id="@p.Id">@p.Id</a></td> @* Número con enlace al detalle *@
+                            <td><a asp-controller="Clientes" asp-action="Details" asp-route-id="@p.ClienteId">@p.Cliente?.Nombre</a></td> @* Cliente con enlace a su ficha *@
+                            <td>@p.Descripcion</td> @* Descripción *@
+                            <td class="text-end num text-nowrap">@Formato.Moneda(p.Monto)</td> @* Monto en formato argentino: $ 1.234,56 *@
+                            <td><partial name="_EstadoBadge" model="p.Estado" /></td> @* Etiqueta del estado *@
+                            <td class="text-nowrap">@Formato.Fecha(p.FechaActualizacion)</td> @* Último cambio *@
+                        </tr> @* Fin de la fila *@
+                    }
+                </tbody> @* Fin del cuerpo *@
+            </table> @* Fin de la tabla *@
+        </div> @* Fin del contenedor *@
+        <div class="card-footer bg-white"><partial name="_Paginacion" model="Model.Paginacion" /></div> @* Paginación al pie de la tarjeta *@
+    </div> @* Fin de la tarjeta *@
 }

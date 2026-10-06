@@ -1,4 +1,9 @@
 @* _Layout: el "marco" común de todas las páginas (cabecera, menú y pie). Cada vista se inserta en @RenderBody() *@
+@{
+    var logueado = User.Identity?.IsAuthenticated == true; // true si hay sesión iniciada (el menú solo se muestra a usuarios logueados)
+    var esAdmin = User.IsInRole(Roles.Administrador); // true si el usuario es administrador (ve Usuarios y Registro)
+    var controlador = ViewContext.RouteData.Values["controller"]?.ToString(); // Pantalla actual, para resaltar la opción del menú
+}
 <!DOCTYPE html> @* Indica que es un documento HTML5 *@
 <html lang="es"> @* Idioma español (ayuda a lectores de pantalla y buscadores) *@
 <head> @* Cabecera: configuración que no se ve directamente *@
@@ -6,34 +11,103 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" /> @* Hace que la página se adapte al celular *@
     <title>@ViewData["Title"] - Gestión de Pedidos</title> @* Título de la pestaña; cada vista define su parte *@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" /> @* Bootstrap: estilos listos (botones, tablas, grillas) descargados de un CDN *@
+    <style>
+        /* Paleta de azules: se definen una sola vez como variables y se reutilizan en toda la app */
+        :root {
+            --azul-950: #081a33; /* Casi negro azulado: barra de navegación */
+            --azul-900: #0b2e59; /* Azul marino: títulos y estado Entregado */
+            --azul-700: #1e5aa8; /* Azul principal: botones y enlaces */
+            --azul-600: #2f74c0; /* Azul medio: estado Enviado y barras del dashboard */
+            --azul-300: #9cc3ea; /* Azul claro: bordes destacados */
+            --azul-200: #cfe6fb; /* Celeste: estado En preparación */
+            --azul-100: #e3edf9; /* Celeste muy claro: estado Pendiente y fondos suaves */
+            --azul-050: #f3f7fc; /* Fondo general de la página */
+            --gris-azulado: #6b7c93; /* Texto apagado: estado Cancelado */
+            --bs-primary: var(--azul-700); /* Le decimos a Bootstrap que su color "primary" es nuestro azul */
+            --bs-primary-rgb: 30, 90, 168; /* Mismo azul en formato RGB (Bootstrap lo usa para transparencias) */
+            --bs-link-color: var(--azul-700); /* Color de los enlaces */
+            --bs-link-color-rgb: 30, 90, 168; /* Enlaces en RGB */
+            --bs-link-hover-color: var(--azul-900); /* Enlaces al pasar el mouse */
+            --bs-link-hover-color-rgb: 11, 46, 89; /* Ídem en RGB */
+        }
+        body { background: var(--azul-050); color: #13233a; } /* Fondo azul muy suave y texto azul oscuro */
+        h1, h2, h3, .h3, .h5 { color: var(--azul-900); } /* Títulos en azul marino */
+        .navbar-gp { background: linear-gradient(90deg, var(--azul-950), var(--azul-900)); } /* Barra superior con degradé azul */
+        .navbar-gp .nav-link.active { color: #fff; border-bottom: 2px solid var(--azul-300); } /* Opción del menú actual, subrayada */
+        .btn-primary { --bs-btn-bg: var(--azul-700); --bs-btn-border-color: var(--azul-700); --bs-btn-hover-bg: var(--azul-900); --bs-btn-hover-border-color: var(--azul-900); --bs-btn-active-bg: var(--azul-950); } /* Botón principal azul */
+        .btn-outline-primary { --bs-btn-color: var(--azul-700); --bs-btn-border-color: var(--azul-700); --bs-btn-hover-bg: var(--azul-700); --bs-btn-hover-border-color: var(--azul-700); } /* Botón con borde azul */
+        .btn-outline-secondary { --bs-btn-color: var(--azul-900); --bs-btn-border-color: var(--azul-300); --bs-btn-hover-bg: var(--azul-100); --bs-btn-hover-color: var(--azul-900); --bs-btn-hover-border-color: var(--azul-300); } /* Botón secundario azulado */
+        .card { border-color: #d6e3f3; } /* Bordes de tarjetas en celeste */
+        .card-header { background: var(--azul-100); color: var(--azul-900); font-weight: 600; } /* Encabezado de tarjetas */
+        .table thead th { background: var(--azul-100) !important; color: var(--azul-900); } /* Encabezado de tablas */
+        .alert-success, .alert-info { background: var(--azul-100); border-color: var(--azul-300); color: var(--azul-900); } /* Mensajes de éxito/info en azul (los errores siguen en rojo para que se distingan) */
+        .estado { display: inline-block; padding: .3em .65em; border-radius: 999px; font-size: .78rem; font-weight: 600; border: 1px solid transparent; } /* Etiqueta de estado (forma de píldora) */
+        .estado-pendiente { background: var(--azul-100); color: #1e3a5f; border-color: #b9cfe9; } /* Pendiente: celeste muy claro */
+        .estado-preparacion { background: var(--azul-200); color: #0b4a7a; border-color: var(--azul-300); } /* En preparación: celeste */
+        .estado-enviado { background: var(--azul-600); color: #fff; } /* Enviado: azul medio */
+        .estado-entregado { background: var(--azul-900); color: #fff; } /* Entregado: azul marino */
+        .estado-cancelado { background: #f1f4f8; color: var(--gris-azulado); border: 1px dashed #b6c2d2; text-decoration: line-through; } /* Cancelado: gris azulado tachado */
+        .kpi { background: #fff; border: 1px solid #d6e3f3; border-left: 4px solid var(--azul-700); border-radius: .5rem; padding: 1rem; } /* Tarjetas de números del dashboard */
+        .kpi .valor { font-size: 1.6rem; font-weight: 700; color: var(--azul-900); font-variant-numeric: tabular-nums; } /* Número grande */
+        .barra-fondo { background: var(--azul-100); border-radius: 4px; height: 12px; } /* Fondo de las barras del dashboard */
+        .barra { background: var(--azul-600); border-radius: 0 4px 4px 0; height: 12px; min-width: 2px; } /* Barra del dashboard */
+        .num { font-variant-numeric: tabular-nums; } /* Números alineados en columnas */
+        .validation-summary-valid { display: none; } /* Oculta el recuadro de errores generales cuando no hay errores */
+        code { color: var(--azul-700); } /* Textos técnicos (rutas, headers) en azul en lugar del rosa de Bootstrap */
+        .form-check-input:checked { background-color: var(--azul-700); border-color: var(--azul-700); } /* Opciones marcadas en azul */
+        .pagination { --bs-pagination-color: var(--azul-700); --bs-pagination-active-bg: var(--azul-700); --bs-pagination-active-border-color: var(--azul-700); --bs-pagination-hover-color: var(--azul-900); } /* Paginación en azul */
+        .form-control:focus, .form-select:focus { border-color: var(--azul-300); box-shadow: 0 0 0 .2rem rgba(30, 90, 168, .2); } /* Borde azul al escribir en un campo */
+    </style>
 </head> @* Fin de la cabecera *@
-<body class="bg-light"> @* Cuerpo de la página con fondo gris claro *@
-    <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4"> @* Barra de navegación superior oscura *@
-        <div class="container"> @* Contenedor centrado con márgenes *@
-            <a class="navbar-brand" asp-controller="Clientes" asp-action="Index">📦 Gestión de Pedidos</a> @* Logo/nombre: lleva al inicio *@
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu"> @* Botón "hamburguesa" que aparece en pantallas chicas *@
-                <span class="navbar-toggler-icon"></span> @* Ícono de las tres rayitas *@
-            </button> @* Fin del botón *@
-            <div class="collapse navbar-collapse" id="menu"> @* Menú que se pliega en el celular *@
-                <ul class="navbar-nav"> @* Lista de enlaces del menú *@
-                    <li class="nav-item"><a class="nav-link" asp-controller="Clientes" asp-action="Index">Clientes</a></li> @* Enlace a /Clientes *@
-                    <li class="nav-item"><a class="nav-link" asp-controller="Pedidos" asp-action="Index">Pedidos</a></li> @* Enlace a /Pedidos *@
-                    <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Webhooks">Webhooks recibidos</a></li> @* Enlace al historial del webhook *@
-                </ul> @* Fin de la lista *@
-            </div> @* Fin del menú plegable *@
-        </div> @* Fin del contenedor *@
-    </nav> @* Fin de la barra de navegación *@
+<body> @* Cuerpo de la página *@
+    @* El menú solo se muestra si hay sesión iniciada *@
+    @if (logueado)
+    {
+        <nav class="navbar navbar-expand-lg navbar-dark navbar-gp mb-4"> @* Barra de navegación superior azul *@
+            <div class="container"> @* Contenedor centrado con márgenes *@
+                <a class="navbar-brand fw-semibold" asp-controller="Home" asp-action="Index">📦 Gestión de Pedidos</a> @* Logo/nombre: lleva al dashboard *@
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu"> @* Botón "hamburguesa" que aparece en pantallas chicas *@
+                    <span class="navbar-toggler-icon"></span> @* Ícono de las tres rayitas *@
+                </button> @* Fin del botón *@
+                <div class="collapse navbar-collapse" id="menu"> @* Menú que se pliega en el celular *@
+                    <ul class="navbar-nav me-auto"> @* Opciones del menú, alineadas a la izquierda *@
+                        <li class="nav-item"><a class="nav-link @(controlador == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")" asp-controller="Home" asp-action="Index">Dashboard</a></li> @* Dashboard *@
+                        <li class="nav-item"><a class="nav-link @(controlador == "Clientes" ? "active" : "")" asp-controller="Clientes" asp-action="Index">Clientes</a></li> @* Clientes *@
+                        <li class="nav-item"><a class="nav-link @(controlador == "Pedidos" ? "active" : "")" asp-controller="Pedidos" asp-action="Index">Pedidos</a></li> @* Pedidos *@
+                        <li class="nav-item"><a class="nav-link @(controlador == "Home" && ViewContext.RouteData.Values["action"]?.ToString() != "Index" ? "active" : "")" asp-controller="Home" asp-action="Webhooks">Webhooks</a></li> @* Historial y prueba del webhook *@
+                        @* Opciones solo para administradores *@
+                        @if (esAdmin)
+                        {
+                            <li class="nav-item"><a class="nav-link @(controlador == "Usuarios" ? "active" : "")" asp-controller="Usuarios" asp-action="Index">Usuarios</a></li> @* Administración de usuarios *@
+                            <li class="nav-item"><a class="nav-link @(controlador == "Registro" ? "active" : "")" asp-controller="Registro" asp-action="Index">Registro</a></li> @* Bitácora *@
+                        }
+                    </ul> @* Fin de las opciones *@
+                    <div class="d-flex align-items-center gap-3 text-white small"> @* Datos del usuario a la derecha *@
+                        <span>@User.FindFirst("nombre")?.Value <span class="badge rounded-pill" style="background: var(--azul-600)">@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</span></span> @* Nombre y rol del usuario *@
+                        <form asp-controller="Cuenta" asp-action="Logout" method="post" class="m-0"> @* Cerrar sesión por POST (con token anti-falsificación) *@
+                            <button type="submit" class="btn btn-sm btn-outline-light">Salir</button> @* Botón de salir *@
+                        </form> @* Fin del formulario *@
+                    </div> @* Fin de los datos del usuario *@
+                </div> @* Fin del menú plegable *@
+            </div> @* Fin del contenedor *@
+        </nav> @* Fin de la barra de navegación *@
+    }
 
-    <main class="container pb-5"> @* Zona principal donde va el contenido de cada página *@
+    <main class="container pb-5 @(logueado ? "" : "pt-5")"> @* Zona principal donde va el contenido de cada página *@
         @* Si una acción anterior dejó un mensaje (ej. "Cliente creado"), se muestra una sola vez *@
         @if (TempData["Mensaje"] is string mensaje)
         {
-            <div class="alert alert-success alert-dismissible fade show">@mensaje <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> @* ...lo mostramos en verde, con botón para cerrarlo *@
+            <div class="alert alert-success alert-dismissible fade show">@mensaje <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> @* Mensaje azul con botón para cerrarlo *@
+        }
+        @* Mensaje de error de una acción anterior (en rojo para que se distinga) *@
+        @if (TempData["Error"] is string error)
+        {
+            <div class="alert alert-danger alert-dismissible fade show">@error <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div> @* Mensaje rojo con botón para cerrarlo *@
         }
         @RenderBody() @* Acá se inserta el contenido de la vista actual *@
     </main> @* Fin de la zona principal *@
 
-    <footer class="text-center text-muted small pb-4">Challenge Fullstack · ASP.NET Core + PostgreSQL</footer> @* Pie de página *@
+    <footer class="text-center small pb-4" style="color: var(--gris-azulado)">Challenge Fullstack · ASP.NET Core + PostgreSQL</footer> @* Pie de página *@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> @* JavaScript de Bootstrap (menú plegable, cerrar alertas) *@
 </body> @* Fin del cuerpo *@
 </html> @* Fin del documento *@

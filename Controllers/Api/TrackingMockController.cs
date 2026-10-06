@@ -1,4 +1,5 @@
 using GestionPedidos.Models; // Para TrackingInfo
+using Microsoft.AspNetCore.Authorization; // Para [AllowAnonymous]
 using Microsoft.AspNetCore.Mvc; // Para ControllerBase y atributos de API
 
 namespace GestionPedidos.Controllers.Api; // Namespace de los controladores de API
@@ -7,6 +8,7 @@ namespace GestionPedidos.Controllers.Api; // Namespace de los controladores de A
 // La app la consulta por HTTP como si fuera de otra empresa; se puede reemplazar por una real cambiando Tracking:BaseUrl
 [ApiController] // Es una API (responde JSON)
 [Route("api/mock/tracking")] // Rutas: /api/mock/tracking/...
+[AllowAnonymous] // Simula un servicio de OTRA empresa: no usa nuestra sesión (la llama el servidor, no el navegador)
 public class TrackingMockController : ControllerBase // Sin vistas, solo datos
 { // Inicio de la clase
     private static readonly string[] Transportistas = { "Fast Delivery", "Andreani", "OCA", "Correo Argentino" }; // Empresas inventadas/de ejemplo

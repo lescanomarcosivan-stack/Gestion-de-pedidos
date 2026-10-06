@@ -1,84 +1,129 @@
-# Guía para publicar la app (sin programar)
+# Guía para publicar la versión 2 (sin programar)
 
-Tiempo estimado: 30 a 60 minutos. Solo clics en el navegador.
+Tu app ya está publicada en Railway. Ahora hay que **subir los archivos nuevos a GitHub** y **cargar algunas variables** en Railway. Railway vuelve a publicar solo.
 
-Vas a hacer 3 cosas:
-1. Subir el código a **GitHub** (el "repositorio" que pide el challenge).
-2. Publicarlo en **Railway** con una base **PostgreSQL**.
-3. Probar que todo ande y completar las URLs en el README.
+Tiempo estimado: 20 minutos para lo obligatorio (Partes 1 a 4). Google y email son opcionales (Partes 5 y 6).
 
----
-
-## Parte 1 — Subir el código a GitHub
-
-1. Entrá a <https://github.com> y creá una cuenta (o iniciá sesión).
-2. Arriba a la derecha tocá **+** → **New repository**.
-3. Completá:
-   - **Repository name:** `gestion-pedidos`
-   - Marcá **Public** (así quien revisa puede verlo).
-   - **No** marques "Add a README" (ya tenemos uno).
-4. Tocá **Create repository**.
-5. En la página que aparece, hacé clic en el enlace **uploading an existing file**.
-6. Descomprimí el `.zip` en tu computadora. Abrí la carpeta `GestionPedidos` y **arrastrá todo su contenido** (las carpetas `Controllers`, `Data`, `Models`, `Services`, `Views` y los archivos sueltos) a la página de GitHub.
-   - Importante: arrastrá lo que está **adentro** de la carpeta, no la carpeta en sí. El `Dockerfile` tiene que quedar en la raíz del repositorio.
-   - Si los archivos que empiezan con punto (`.gitignore`, `.dockerignore`) no se suben, no pasa nada: son opcionales.
-7. Abajo, en "Commit changes", escribí `Versión inicial` y tocá **Commit changes**.
-8. Verificá que en la página del repositorio se vean `Dockerfile`, `Program.cs` y las carpetas.
+> **Ojo:** al arrancar la versión nueva, la app detecta que la base es de la versión anterior y **recrea las tablas con datos de ejemplo**. Se pierden los clientes y pedidos que hayas cargado a mano (son datos de prueba, así que no importa).
 
 ---
 
-## Parte 2 — Publicar en Railway
+## Parte 1 — Subir los archivos nuevos a GitHub
 
-1. Entrá a <https://railway.com> e iniciá sesión **con tu cuenta de GitHub** (botón "Login with GitHub").
-   - Railway ofrece un crédito de prueba; revisá en su página los precios vigentes antes de empezar.
-2. Tocá **New Project** → **Deploy from GitHub repo** → elegí `gestion-pedidos`.
-   - Si no aparece, tocá **Configure GitHub App** y dale acceso a ese repositorio.
-3. Railway detecta el `Dockerfile` solo y empieza a construir. **El primer intento va a fallar** porque todavía no hay base de datos: es normal.
-4. Agregá la base: en el lienzo del proyecto tocá **+ New** (o **Create**) → **Database** → **PostgreSQL**. Esperá a que aparezca el recuadro "Postgres".
-5. Conectá la app con la base:
-   - Hacé clic en el recuadro de tu app (`gestion-pedidos`).
-   - Pestaña **Variables** → **New Variable** → **Add Reference** (o "Add Reference Variable").
-   - Elegí el servicio **Postgres** y la variable **DATABASE_URL**. Guardá.
-   - Si te pide escribirla a mano: nombre `DATABASE_URL`, valor `${{Postgres.DATABASE_URL}}`.
-6. Railway vuelve a publicar solo. Si no, tocá **Deploy** / **Redeploy**.
-7. Generá la dirección pública:
-   - En tu app: pestaña **Settings** → sección **Networking** → **Generate Domain**.
-   - Si te pregunta el puerto, poné **8080**.
-   - Te va a dar algo como `https://gestion-pedidos-production.up.railway.app`.
-8. (Opcional) Clave del webhook: en **Variables** agregá `Webhook__Secret` con una clave (ej. `mi-clave-123`). Si la ponés, avisá la clave a quien revisa. Si no, el webhook queda abierto (más simple para la prueba).
+1. Descomprimí el `.zip` nuevo en tu computadora (clic derecho → **Extraer todo**). Entrá a la carpeta hasta ver `Controllers`, `Models`, `Views`, `Program.cs`, `Dockerfile`, etc.
+2. En el navegador, abrí tu repositorio en **github.com** (el que se llama `Gestion-de-pedidos`).
+3. Arriba a la derecha de la lista de archivos tocá **Add file** → **Upload files**.
+4. Seleccioná **todo** el contenido de la carpeta (**Ctrl + A**) y **arrastralo** a la página.
+   - GitHub reemplaza los archivos que ya existían y agrega los nuevos. No hace falta borrar nada antes.
+5. Esperá que termine de cargar la lista (son unos 55 archivos).
+6. Abajo, en el cuadro de texto, escribí: `Versión 2: login, roles, webhook firmado, dashboard`
+7. Tocá **Commit changes**.
+8. **Para comprobar:** entrá a la carpeta `Controllers`. Tiene que aparecer `CuentaController.cs`. Si aparece, se subió bien.
 
-### Si algo falla
-- Pestaña **Deployments** → último deploy → **View logs**. Leé las últimas líneas.
-- "La base todavía no responde": esperá 1 minuto; la app reintenta 10 veces.
-- "Falta configurar la base": no se cargó `DATABASE_URL` (volvé al paso 5).
-- Copiá el error y pegámelo en el chat; lo resolvemos.
+Railway detecta el cambio y empieza a publicar solo. **Todavía no lo abras**: primero cargá las variables (Parte 2).
 
 ---
 
-## Parte 3 — Probar
+## Parte 2 — Cargar las variables en Railway
 
-1. Abrí tu URL: tenés que ver la lista de 5 clientes de ejemplo.
-2. Entrá a **Pedidos** → pedido **#15**: tiene que mostrar el recuadro "Seguimiento (API externa)" con código, transportista y fecha.
-3. Probá el webhook desde la página <https://reqbin.com> (o Postman):
-   - Método **POST**
-   - URL: `https://TU-APP.up.railway.app/api/webhooks/orders`
-   - Body (JSON):
-     ```json
-     {"event":"order.status.changed","orderId":15,"status":"DELIVERED"}
-     ```
-   - Tiene que responder `{"ok":true,"mensaje":"Pedido 15: Pendiente → Entregado"}`.
-4. Recargá el pedido #15: ahora dice **Entregado**. Y en **Webhooks recibidos** aparece el evento.
+1. Entrá a **railway.com** → tu proyecto → clic en el recuadro **Gestion-de-pedidos**.
+2. Pestaña **Variables** → **+ New Variable**. Cargá estas, una por una (nombre exacto, con **dos** guiones bajos):
+
+| Nombre | Valor |
+|---|---|
+| `Webhook__Secret` | Un texto largo e inventado, de al menos 32 caracteres (letras y números, sin espacios). **No lo escribas en ningún archivo del repositorio**: el repositorio es público |
+| `Demo__Password` | Una contraseña tuya para los usuarios demo (mínimo 8 caracteres, con letras y números) |
+| `App__UrlPublica` | `https://gestion-de-pedidos-production.up.railway.app` |
+
+3. Si aparece el botón **Deploy** o **Apply changes**, tocalo.
+4. Pestaña **Deployments**: esperá a que el último diga **Active / Success** (3 a 5 minutos).
+   - Si sale **Failed** o **Crashed**: tocá **View logs** y mandame una captura de las últimas líneas.
+
+> Guardá la clave del webhook en un lugar seguro: se la vas a pasar a quien revise el challenge.
 
 ---
 
-## Parte 4 — Completar el README y entregar
+## Parte 3 — Primer ingreso
 
-1. En GitHub abrí `README.md` → ícono del lápiz ✏️.
-2. Reemplazá `TU-APP.up.railway.app` por tu URL real y `TU-USUARIO` por tu usuario de GitHub. **Commit changes**.
-3. Mandá a la empresa:
-   - URL de la app
-   - URL del webhook: `https://TU-APP.up.railway.app/api/webhooks/orders`
-   - Ejemplo de JSON del webhook y la clave si configuraste una
-   - URL del repositorio
+1. Abrí `https://gestion-de-pedidos-production.up.railway.app`. Ahora aparece la **pantalla de login**.
+2. Entrá con:
+   - Email: `admin@demo.com`
+   - Contraseña: la que pusiste en `Demo__Password`
+3. Vas a ver el **Dashboard** con los pedidos por estado.
 
-**Importante:** la app tiene que seguir publicada el día de la revisión. No borres el proyecto de Railway hasta que termine el proceso.
+---
+
+## Parte 4 — Probar lo nuevo (checklist)
+
+- [ ] **Pedidos** → poné Desde = hoy y Hasta = ayer → **Filtrar**: aparece un error en rojo.
+- [ ] Buscá `zzzz` → dice "Ningún pedido coincide…" → tocá **✕ Limpiar filtros**.
+- [ ] Abajo de la tabla está la **paginación** (1, 2, 3).
+- [ ] Los montos se ven como `$ 1.500,50`.
+- [ ] Abrí un pedido **Cancelado** (filtrá por estado Cancelado): no muestra seguimiento.
+- [ ] Cambiá el estado de un pedido y mirá el **Historial de estados** abajo.
+- [ ] **Webhooks** → **Probar webhook** → **Enviar evento**: dice "✓ Evento procesado correctamente".
+- [ ] Probá de nuevo con "Firma con clave equivocada": dice "✗ Evento rechazado" (401).
+- [ ] **Salir** → entrá con `consulta@demo.com`: no aparecen botones para crear ni editar.
+- [ ] **Salir** → **Crear cuenta** con un email tuyo → te dice que espera aprobación. Entrá como admin → **Usuarios** → **Activar**.
+- [ ] **Registro**: aparecen todos los logins, cambios y webhooks que hiciste.
+
+---
+
+## Parte 5 (opcional) — Ingresar con Google
+
+Necesitás una cuenta de Google. Son unos 15 minutos.
+
+1. Entrá a **console.cloud.google.com** e iniciá sesión.
+2. Arriba, en el selector de proyectos → **Proyecto nuevo** → nombre `Gestion Pedidos` → **Crear**. Asegurate de que quede seleccionado.
+3. En el buscador de arriba escribí **"Google Auth Platform"** (o "Pantalla de consentimiento de OAuth") y entrá.
+4. Tocá **Comenzar** y completá:
+   - Nombre de la app: `Gestión de Pedidos`
+   - Correo de asistencia: tu email
+   - Público: **Externo**
+   - Información de contacto: tu email → aceptá y **Crear**.
+5. En el menú de la izquierda: **Público** → **Publicar app** → confirmar. (Si queda "En prueba", solo podrán entrar los emails que agregues como usuarios de prueba.)
+6. Menú de la izquierda: **Clientes** → **Crear cliente**:
+   - Tipo de aplicación: **Aplicación web**
+   - Nombre: `Railway`
+   - **URIs de redireccionamiento autorizados** → **Agregar URI** → pegá exactamente:
+     `https://gestion-de-pedidos-production.up.railway.app/signin-google`
+   - **Crear**.
+7. Aparece una ventana con el **ID de cliente** y el **Secreto del cliente**. Copialos (botón de copiar).
+8. En Railway → **Variables**, agregá:
+
+| Nombre | Valor |
+|---|---|
+| `Autenticacion__Google__ClientId` | el ID de cliente |
+| `Autenticacion__Google__ClientSecret` | el secreto del cliente |
+
+9. Esperá el nuevo deploy. En el login aparece **Ingresar con Google**.
+10. La primera vez que alguien entra con Google, su cuenta queda **pendiente**: un admin la activa en **Usuarios**.
+
+Si Google muestra el error `redirect_uri_mismatch`, revisá que la URI del paso 6 sea idéntica (https, sin barra al final).
+
+---
+
+## Parte 6 (opcional) — Enviar emails de recuperación de contraseña
+
+Sin esto, la recuperación funciona igual, pero el enlace **no llega por email**: queda escrito en los logs de Railway (Deployments → View logs → buscá "Email NO enviado").
+
+1. Creá una cuenta gratis en **brevo.com**.
+2. Menú de tu cuenta → **Senders, Domains & Dedicated IPs** (Remitentes) → **Add sender** → poné tu Gmail → Brevo te manda un código → verificalo.
+3. Menú de tu cuenta → **SMTP & API** → pestaña **API Keys** → **Generate a new API key** → nombre `railway` → copiala (se muestra una sola vez).
+4. En Railway → **Variables**, agregá:
+
+| Nombre | Valor |
+|---|---|
+| `Email__BrevoApiKey` | la clave que copiaste |
+| `Email__Remitente` | tu Gmail verificado en el paso 2 |
+
+5. Probá: **Salir** → **¿Olvidaste tu contraseña?** → poné un email de una cuenta activa → revisá la bandeja (y **spam**).
+
+---
+
+## Qué mandarle a la empresa
+
+- URL de la app y los 3 usuarios demo con la contraseña.
+- URL del webhook: `https://gestion-de-pedidos-production.up.railway.app/api/webhooks/orders`
+- La clave del webhook (`Webhook__Secret`) y cómo firmar (está en el README).
+- URL del repositorio de GitHub.

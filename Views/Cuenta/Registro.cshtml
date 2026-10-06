@@ -1,0 +1,25 @@
+@* Pantalla para crear una cuenta nueva (queda pendiente de aprobación del administrador) *@
+@* La vista recibe el formulario de registro *@
+@model RegistroViewModel
+@{
+    ViewData["Title"] = "Crear cuenta"; // Título de la pestaña
+}
+
+<div class="row justify-content-center"> @* Centra la tarjeta *@
+    <div class="col-md-6 col-lg-4"> @* Ancho de la tarjeta *@
+        <h1 class="h3 text-center mb-4">Crear cuenta</h1> @* Título *@
+        <div class="card shadow-sm"> @* Tarjeta *@
+            <div class="card-body p-4"> @* Contenido *@
+                <form asp-action="Registro" method="post"> @* POST /Cuenta/Registro *@
+                    <div class="mb-3"><label asp-for="Nombre" class="form-label"></label><input asp-for="Nombre" class="form-control" /><span asp-validation-for="Nombre" class="text-danger small"></span></div> @* Nombre *@
+                    <div class="mb-3"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" autocomplete="username" /><span asp-validation-for="Email" class="text-danger small"></span></div> @* Email *@
+                    <div class="mb-3"><label asp-for="Password" class="form-label"></label><input asp-for="Password" class="form-control" autocomplete="new-password" /><span asp-validation-for="Password" class="text-danger small"></span></div> @* Contraseña *@
+                    <div class="mb-3"><label asp-for="ConfirmarPassword" class="form-label"></label><input asp-for="ConfirmarPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="ConfirmarPassword" class="text-danger small"></span></div> @* Repetir contraseña *@
+                    <p class="small" style="color: var(--gris-azulado)">Mínimo 8 caracteres, con letras y números. La cuenta se activa cuando un administrador la aprueba.</p> @* Reglas *@
+                    <button type="submit" class="btn btn-primary w-100">Crear cuenta</button> @* Envía *@
+                </form> @* Fin del formulario *@
+                <div class="text-center mt-3 small"><a asp-action="Login">Volver al inicio de sesión</a></div> @* Volver *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

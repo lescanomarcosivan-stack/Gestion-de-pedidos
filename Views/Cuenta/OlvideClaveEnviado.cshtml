@@ -1,0 +1,16 @@
+@* Confirmación después de pedir la recuperación. Siempre es el mismo mensaje (no revela si el email existe) *@
+@{
+    ViewData["Title"] = "Revisá tu email"; // Título de la pestaña
+}
+<div class="row justify-content-center"> @* Centra la tarjeta *@
+    <div class="col-md-6 col-lg-4"> @* Ancho *@
+        <div class="card shadow-sm"> @* Tarjeta *@
+            <div class="card-body p-4 text-center"> @* Contenido centrado *@
+                <h1 class="h4">📧 Revisá tu email</h1> @* Título *@
+                <p>Si el email corresponde a una cuenta activa, te enviamos un enlace para elegir una contraseña nueva. Vence en 30 minutos.</p> @* Mensaje genérico (por seguridad) *@
+                <p class="small" style="color: var(--gris-azulado)">Si no llega, revisá la carpeta de spam.</p> @* Ayuda *@
+                <a asp-action="Login" class="btn btn-primary">Volver al inicio de sesión</a> @* Volver *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

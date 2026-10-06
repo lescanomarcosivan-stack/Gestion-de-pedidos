@@ -1,0 +1,22 @@
+@* Pantalla "Olvidé mi contraseña": pide el email para enviar el enlace de recuperación *@
+@* La vista recibe el formulario con el email *@
+@model OlvideClaveViewModel
+@{
+    ViewData["Title"] = "Recuperar contraseña"; // Título de la pestaña
+}
+
+<div class="row justify-content-center"> @* Centra la tarjeta *@
+    <div class="col-md-6 col-lg-4"> @* Ancho *@
+        <h1 class="h3 text-center mb-4">Recuperar contraseña</h1> @* Título *@
+        <div class="card shadow-sm"> @* Tarjeta *@
+            <div class="card-body p-4"> @* Contenido *@
+                <p class="small">Ingresá el email de tu cuenta. Si existe, te enviamos un enlace para elegir una contraseña nueva (vence en 30 minutos).</p> @* Explicación *@
+                <form asp-action="OlvideClave" method="post"> @* POST /Cuenta/OlvideClave *@
+                    <div class="mb-3"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" autofocus /><span asp-validation-for="Email" class="text-danger small"></span></div> @* Email *@
+                    <button type="submit" class="btn btn-primary w-100">Enviar enlace</button> @* Envía *@
+                </form> @* Fin del formulario *@
+                <div class="text-center mt-3 small"><a asp-action="Login">Volver al inicio de sesión</a></div> @* Volver *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

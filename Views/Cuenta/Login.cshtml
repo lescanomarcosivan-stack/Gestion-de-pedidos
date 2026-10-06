@@ -1,0 +1,47 @@
+@* Pantalla de inicio de sesión: email + contraseña, o Google *@
+@* La vista recibe el formulario de login *@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Iniciar sesión"; // Título de la pestaña
+    var google = (bool)(ViewBag.GoogleHabilitado ?? false); // ¿Mostrar el botón de Google?
+}
+
+<div class="row justify-content-center"> @* Centra la tarjeta en la pantalla *@
+    <div class="col-md-6 col-lg-4"> @* Ancho de la tarjeta *@
+        <h1 class="h3 text-center mb-4">📦 Gestión de Pedidos</h1> @* Nombre de la app *@
+        <div class="card shadow-sm"> @* Tarjeta del formulario *@
+            <div class="card-body p-4"> @* Contenido con margen interno *@
+                <form asp-action="Login" method="post"> @* POST /Cuenta/Login (con token anti-falsificación) *@
+                    <input type="hidden" asp-for="ReturnUrl" /> @* Campo oculto: adónde volver después del login *@
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div> @* Errores generales (ej. contraseña incorrecta); no se muestra si no hay *@
+                    <div class="mb-3"> @* Bloque email *@
+                        <label asp-for="Email" class="form-label"></label> @* Etiqueta *@
+                        <input asp-for="Email" class="form-control" autocomplete="username" autofocus /> @* Campo email (el cursor arranca acá) *@
+                        <span asp-validation-for="Email" class="text-danger small"></span> @* Error del campo *@
+                    </div> @* Fin del bloque *@
+                    <div class="mb-3"> @* Bloque contraseña *@
+                        <label asp-for="Password" class="form-label"></label> @* Etiqueta *@
+                        <input asp-for="Password" class="form-control" autocomplete="current-password" /> @* Campo contraseña (se ve con puntitos) *@
+                        <span asp-validation-for="Password" class="text-danger small"></span> @* Error del campo *@
+                    </div> @* Fin del bloque *@
+                    <button type="submit" class="btn btn-primary w-100">Ingresar</button> @* Botón de ingresar *@
+                </form> @* Fin del formulario *@
+
+                @* Botón de Google solo si está configurado en el servidor *@
+                @if (google)
+                {
+                    <div class="text-center my-3 small" style="color: var(--gris-azulado)">o</div> @* Separador *@
+                    <a class="btn btn-outline-secondary w-100" asp-action="LoginGoogle" asp-route-returnUrl="@Model.ReturnUrl"> @* Inicia el ida y vuelta con Google *@
+                        <svg width="18" height="18" viewBox="0 0 48 48" class="me-1 align-text-bottom" aria-hidden="true"><path fill="#4285F4" d="M45 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2.1 5-4.4 6.6v5.5h7.1c4.2-3.9 6.5-9.6 6.5-16.1z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-2 14.5-5.3l-7.1-5.5c-2 1.3-4.5 2.1-7.4 2.1-5.7 0-10.5-3.8-12.2-9H4.5v5.7C8.1 41.1 15.5 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.3c-.4-1.3-.7-2.8-.7-4.3s.3-3 .7-4.3V14H4.5C3 17 2 20.4 2 24s1 7 2.5 10l7.3-5.7z"/><path fill="#EA4335" d="M24 10.7c3.2 0 6.1 1.1 8.4 3.3l6.3-6.3C34.9 4.1 29.9 2 24 2 15.5 2 8.1 6.9 4.5 14l7.3 5.7c1.7-5.2 6.5-9 12.2-9z"/></svg> @* Logo de Google (dibujo vectorial) *@
+                        Ingresar con Google @* Texto del botón *@
+                    </a> @* Fin del botón *@
+                }
+
+                <div class="d-flex justify-content-between mt-3 small"> @* Enlaces secundarios *@
+                    <a asp-action="OlvideClave">¿Olvidaste tu contraseña?</a> @* Recuperación *@
+                    <a asp-action="Registro">Crear cuenta</a> @* Registro *@
+                </div> @* Fin de los enlaces *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

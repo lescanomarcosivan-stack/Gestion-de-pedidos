@@ -1,0 +1,70 @@
+@* Administración de usuarios: aprobar cuentas, asignar roles, activar/desactivar *@
+@* La vista recibe la lista de usuarios *@
+@model List<Usuario>
+@{
+    ViewData["Title"] = "Usuarios"; // Título de la pestaña
+    var miId = (int)ViewBag.MiId; // Id del administrador actual (no puede modificarse a sí mismo)
+    var pendientes = Model.Count(u => !u.Activo); // Cantidad de cuentas inactivas/pendientes
+}
+
+<h1 class="h3 mb-1">Usuarios</h1> @* Título *@
+<p style="color: var(--gris-azulado)">Las cuentas nuevas (registro o Google) quedan inactivas con rol <strong>Consulta</strong> hasta que un administrador las activa.</p> @* Explicación *@
+
+@* Aviso si hay cuentas esperando aprobación *@
+@if (pendientes > 0)
+{
+    <div class="alert alert-info">Hay <strong>@pendientes</strong> cuenta(s) inactiva(s) o pendiente(s) de aprobación.</div> @* Aviso *@
+}
+
+<div class="card"> @* Tarjeta con la tabla *@
+    <div class="table-responsive"> @* Tabla desplazable *@
+        <table class="table align-middle mb-0"> @* Tabla *@
+            <thead><tr><th>Usuario</th><th>Acceso</th><th>Último ingreso</th><th>Rol</th><th>Estado</th></tr></thead> @* Encabezados *@
+            <tbody> @* Cuerpo *@
+                @* Una fila por usuario *@
+                @foreach (var u in Model)
+                {
+                    <tr> @* Fila *@
+                        <td><strong>@u.Nombre</strong><div class="small" style="color: var(--gris-azulado)">@u.Email</div></td> @* Nombre y email *@
+                        <td class="small">@(u.PasswordHash is null ? "" : "Contraseña")@(u.PasswordHash is not null && u.GoogleId is not null ? " + " : "")@(u.GoogleId is null ? "" : "Google")</td> @* Cómo puede entrar *@
+                        <td class="small">@(u.UltimoAcceso is DateTime f ? Formato.Fecha(f) : "Nunca")</td> @* Último ingreso *@
+                        <td> @* Rol *@
+                            @* El propio administrador no puede cambiarse el rol *@
+                            @if (u.Id == miId)
+                            {
+                                <span>@u.Rol (vos)</span> @* Solo texto *@
+                            }
+                            else
+                            {
+                                <form asp-action="CambiarRol" asp-route-id="@u.Id" method="post" class="d-flex gap-1"> @* POST /Usuarios/CambiarRol/{id} *@
+                                    <select name="rol" class="form-select form-select-sm w-auto"> @* Combo de roles *@
+                                        @* Una opción por rol; queda marcado el actual *@
+                                        @foreach (var r in Roles.Todos)
+                                        {
+                                            <option value="@r" selected="@(r == u.Rol)">@r</option> @* Opción *@
+                                        }
+                                    </select> @* Fin del combo *@
+                                    <button class="btn btn-sm btn-outline-primary">Guardar</button> @* Envía *@
+                                </form> @* Fin del formulario *@
+                            }
+                        </td> @* Fin de la celda *@
+                        <td> @* Estado *@
+                            @* El propio administrador no puede desactivarse *@
+                            @if (u.Id == miId)
+                            {
+                                <span class="estado estado-entregado">Activo</span> @* Solo etiqueta *@
+                            }
+                            else
+                            {
+                                <form asp-action="CambiarActivo" asp-route-id="@u.Id" method="post" class="d-flex align-items-center gap-2"> @* POST /Usuarios/CambiarActivo/{id} *@
+                                    <span class="estado @(u.Activo ? "estado-entregado" : "estado-pendiente")">@(u.Activo ? "Activo" : "Inactivo")</span> @* Estado actual *@
+                                    <button class="btn btn-sm @(u.Activo ? "btn-outline-secondary" : "btn-primary")">@(u.Activo ? "Desactivar" : "Activar")</button> @* Botón que invierte el estado *@
+                                </form> @* Fin del formulario *@
+                            }
+                        </td> @* Fin de la celda *@
+                    </tr> @* Fin de la fila *@
+                }
+            </tbody> @* Fin del cuerpo *@
+        </table> @* Fin de la tabla *@
+    </div> @* Fin del contenedor *@
+</div> @* Fin de la tarjeta *@

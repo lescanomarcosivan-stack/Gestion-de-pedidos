@@ -1,0 +1,9 @@
+@* Pantalla que ve un usuario logueado cuando su rol no le permite entrar a una sección *@
+@{
+    ViewData["Title"] = "Acceso denegado"; // Título de la pestaña
+}
+<div class="alert alert-danger"> @* Recuadro rojo *@
+    <h4>Acceso denegado</h4> @* Título *@
+    <p class="mb-0">Tu rol (<strong>@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</strong>) no tiene permiso para esta acción. Si lo necesitás, pedíselo a un administrador.</p> @* Explicación con el rol actual *@
+</div> @* Fin del recuadro *@
+<a asp-controller="Home" asp-action="Index">← Volver al dashboard</a> @* Volver *@

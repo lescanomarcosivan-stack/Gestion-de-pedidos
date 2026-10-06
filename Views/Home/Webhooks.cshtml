@@ -1,37 +1,71 @@
-@* Historial de avisos recibidos por el webhook (para comprobar en la revisión que llegaron) *@
+@* Historial de avisos recibidos por el webhook, indicando claramente si cada uno se procesó *@
 @* La vista recibe la lista de eventos guardados *@
 @model List<EventoWebhook>
 @{
-    ViewData["Title"] = "Webhooks recibidos"; // Título de la pestaña
+    ViewData["Title"] = "Webhooks"; // Título de la pestaña
+    var resultado = ViewBag.Resultado as string; // Filtro activo ("procesados", "rechazados" o null)
+    var configurado = (bool)ViewBag.Configurado; // ¿El servidor tiene la clave del webhook?
+    var puedeProbar = User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.Operador); // Solo admin y operador pueden enviar pruebas
 }
 
-<h1 class="h3 mb-1">Webhooks recibidos</h1> @* Título *@
-<p class="text-muted">Endpoint: <code>POST /api/webhooks/orders</code> · se muestran los últimos 100 eventos.</p> @* Dónde hay que enviar los avisos *@
+<div class="d-flex justify-content-between align-items-center mb-1"> @* Fila de título y botón *@
+    <h1 class="h3 mb-0">Webhooks recibidos</h1> @* Título *@
+    @* Botón para probar (solo si el rol lo permite) *@
+    @if (puedeProbar)
+    {
+        <a class="btn btn-primary" asp-action="ProbarWebhook">Probar webhook</a> @* Lleva a la pantalla de prueba *@
+    }
+</div> @* Fin de la fila *@
+<p style="color: var(--gris-azulado)">Endpoint: <code>POST /api/webhooks/orders</code> · se muestran los últimos 100 eventos.</p> @* Dónde hay que enviar los avisos *@
 
-@* Aviso si no llegó nada; tabla si hay eventos *@
+@* Aviso si falta la clave secreta *@
+@if (!configurado)
+{
+    <div class="alert alert-danger"><strong>El webhook no está configurado.</strong> Falta la variable <code>Webhook__Secret</code> en el servidor: todos los avisos se rechazan con 503.</div> @* Aviso en rojo *@
+}
+
+<div class="btn-group btn-group-sm mb-3"> @* Botones de filtro *@
+    <a class="btn @(resultado is null ? "btn-primary" : "btn-outline-primary")" asp-action="Webhooks">Todos</a> @* Sin filtro *@
+    <a class="btn @(resultado == "procesados" ? "btn-primary" : "btn-outline-primary")" asp-action="Webhooks" asp-route-resultado="procesados">✓ Procesados</a> @* Solo los que actualizaron el pedido *@
+    <a class="btn @(resultado == "rechazados" ? "btn-primary" : "btn-outline-primary")" asp-action="Webhooks" asp-route-resultado="rechazados">✗ Rechazados</a> @* Solo los rechazados *@
+</div> @* Fin de los filtros *@
+
+@* Aviso si no hay eventos; tabla si hay *@
 @if (Model.Count == 0)
 {
-    <div class="alert alert-info">Todavía no se recibió ningún evento.</div> @* Aviso *@
+    <div class="alert alert-info">@(resultado is null ? "Todavía no se recibió ningún evento." : "No hay eventos con ese filtro.")</div> @* Distingue "nunca llegó nada" de "el filtro no encontró nada" *@
 }
 else
 {
-    <div class="table-responsive"> @* Tabla desplazable *@
-        <table class="table bg-white align-middle small"> @* Tabla *@
-            <thead class="table-light"><tr><th>Recibido</th><th>Evento</th><th>Pedido</th><th>Estado recibido</th><th>Respuesta</th><th>Resultado</th></tr></thead> @* Encabezados *@
-            <tbody> @* Cuerpo *@
-                @* Una fila por evento *@
-                @foreach (var e in Model)
-                {
-                    <tr> @* Fila *@
-                        <td class="text-nowrap">@EstadoMapper.HoraArgentina(e.FechaRecepcion)</td> @* Cuándo llegó *@
-                        <td><code>@e.Evento</code></td> @* Tipo de evento *@
-                        <td>@e.PedidoId</td> @* Pedido indicado *@
-                        <td>@e.EstadoRecibido</td> @* Estado que vino en el aviso *@
-                        <td><span class="badge @(e.CodigoRespuesta == 200 ? "bg-success" : "bg-danger")">@e.CodigoRespuesta</span></td> @* Código HTTP: verde si fue 200, rojo si no *@
-                        <td>@e.Resultado</td> @* Explicación *@
-                    </tr> @* Fin de la fila *@
-                }
-            </tbody> @* Fin del cuerpo *@
-        </table> @* Fin de la tabla *@
-    </div> @* Fin del contenedor *@
+    <div class="card"> @* Tarjeta con la tabla *@
+        <div class="table-responsive"> @* Tabla desplazable *@
+            <table class="table align-middle small mb-0"> @* Tabla *@
+                <thead><tr><th>Resultado</th><th>Recibido</th><th>Pedido</th><th>Estado recibido</th><th>Seguridad</th><th>Detalle</th></tr></thead> @* Encabezados *@
+                <tbody> @* Cuerpo *@
+                    @* Una fila por evento *@
+                    @foreach (var e in Model)
+                    {
+                        <tr class="@(e.Procesado ? "" : "table-danger")"> @* Los rechazados se pintan de rojo suave para que se distingan *@
+                            <td class="text-nowrap"> @* Columna resultado *@
+                                @* Ícono + texto + código: no depende solo del color *@
+                                @if (e.Procesado)
+                                {
+                                    <span class="estado estado-entregado">✓ Procesado</span> <span class="num" style="color: var(--gris-azulado)">200</span> @* Procesado correctamente *@
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">✗ Rechazado</span> <span class="num text-danger">@e.CodigoRespuesta</span> @* Rechazado con su código *@
+                                }
+                            </td> @* Fin de la columna *@
+                            <td class="text-nowrap">@Formato.Fecha(e.FechaRecepcion)</td> @* Cuándo llegó *@
+                            <td>@(e.PedidoId is int id ? Html.ActionLink($"#{id}", "Details", "Pedidos", new { id }) : Html.Raw("—"))</td> @* Pedido con enlace (o guion) *@
+                            <td>@e.EstadoRecibido</td> @* Estado que vino en el aviso *@
+                            <td>@e.Autenticacion</td> @* Cómo se identificó el emisor *@
+                            <td>@e.Resultado</td> @* Explicación *@
+                        </tr> @* Fin de la fila *@
+                    }
+                </tbody> @* Fin del cuerpo *@
+            </table> @* Fin de la tabla *@
+        </div> @* Fin del contenedor *@
+    </div> @* Fin de la tarjeta *@
 }

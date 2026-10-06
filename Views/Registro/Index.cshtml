@@ -1,0 +1,60 @@
+@* Bitácora del sistema: accesos, actividad, webhooks y errores (solo administradores) *@
+@* La vista recibe los registros de la página actual *@
+@model List<RegistroActividad>
+@{
+    ViewData["Title"] = "Registro"; // Título de la pestaña
+    var tipoElegido = ViewBag.Tipo as TipoRegistro?; // Tipo filtrado (o null)
+    var paginacion = (InfoPaginacion)ViewBag.Paginacion; // Datos de paginación
+    var hayFiltros = tipoElegido.HasValue || !string.IsNullOrWhiteSpace(ViewBag.Q as string); // ¿Hay filtros aplicados?
+}
+
+<h1 class="h3 mb-3">Registro de actividad</h1> @* Título *@
+
+<form method="get" class="row g-2 mb-3"> @* Filtros por GET *@
+    <div class="col-md-3"> @* Columna tipo *@
+        <select name="tipo" class="form-select"> @* Combo de tipos *@
+            <option value="">Todos los tipos</option> @* Sin filtro *@
+            @* Una opción por tipo *@
+            @foreach (var t in Enum.GetValues<TipoRegistro>())
+            {
+                <option value="@t" selected="@(t == tipoElegido)">@t</option> @* Opción *@
+            }
+        </select> @* Fin del combo *@
+    </div> @* Fin de la columna *@
+    <div class="col-md-5"><input name="q" value="@ViewBag.Q" class="form-control" placeholder="Usuario, acción o detalle" /></div> @* Texto a buscar *@
+    <div class="col-md-4 d-flex gap-2"> @* Botones *@
+        <button class="btn btn-primary flex-fill">Filtrar</button> @* Aplica *@
+        <a class="btn btn-outline-secondary flex-fill @(hayFiltros ? "" : "disabled")" asp-action="Index">✕ Limpiar filtros</a> @* Quita filtros *@
+    </div> @* Fin de los botones *@
+</form> @* Fin del formulario *@
+
+@* Aviso si no hay registros; tabla si hay *@
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">@(hayFiltros ? "Ningún registro coincide con los filtros." : "Todavía no hay registros.")</div> @* Distingue vacío de sin resultados *@
+}
+else
+{
+    <div class="card"> @* Tarjeta *@
+        <div class="table-responsive"> @* Tabla desplazable *@
+            <table class="table align-middle small mb-0"> @* Tabla *@
+                <thead><tr><th>Fecha</th><th>Tipo</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>IP</th></tr></thead> @* Encabezados *@
+                <tbody> @* Cuerpo *@
+                    @* Una fila por registro *@
+                    @foreach (var r in Model)
+                    {
+                        <tr class="@(r.Tipo == TipoRegistro.Error ? "table-danger" : "")"> @* Los errores se destacan en rojo suave *@
+                            <td class="text-nowrap">@Formato.Fecha(r.Fecha)</td> @* Cuándo *@
+                            <td><span class="estado @(r.Tipo == TipoRegistro.Error ? "estado-cancelado" : r.Tipo == TipoRegistro.Acceso ? "estado-preparacion" : r.Tipo == TipoRegistro.Webhook ? "estado-enviado" : "estado-pendiente")" style="text-decoration: none">@r.Tipo</span></td> @* Tipo con color *@
+                            <td>@r.Usuario</td> @* Quién *@
+                            <td>@r.Accion</td> @* Qué *@
+                            <td>@r.Detalle</td> @* Detalle *@
+                            <td class="text-nowrap">@r.Ip</td> @* Desde dónde *@
+                        </tr> @* Fin de la fila *@
+                    }
+                </tbody> @* Fin del cuerpo *@
+            </table> @* Fin de la tabla *@
+        </div> @* Fin del contenedor *@
+        <div class="card-footer bg-white"><partial name="_Paginacion" model="paginacion" /></div> @* Paginación *@
+    </div> @* Fin de la tarjeta *@
+}

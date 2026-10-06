@@ -1,0 +1,67 @@
+@* Dashboard: resumen de pedidos y montos por estado *@
+@* La vista recibe los totales ya calculados por HomeController.Index *@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard"; // Título de la pestaña
+    var maxMonto = Model.PorEstado.Count == 0 ? 0 : Model.PorEstado.Max(r => r.Monto); // Monto más grande (la barra más larga ocupa el 100%)
+}
+
+<h1 class="h3 mb-3">Dashboard</h1> @* Título *@
+
+<div class="row g-3 mb-4"> @* Fila de tarjetas con números clave *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos totales</div><div class="valor">@Formato.Numero(Model.TotalPedidos)</div></div></div> @* Cantidad total de pedidos *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Monto total</div><div class="valor">@Formato.Moneda(Model.MontoTotal)</div></div></div> @* Suma de todos los montos *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos abiertos</div><div class="valor">@Formato.Numero(Model.PedidosAbiertos)</div><div class="small num">@Formato.Moneda(Model.MontoAbierto)</div></div></div> @* Pedidos en curso y su monto *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Clientes</div><div class="valor">@Formato.Numero(Model.TotalClientes)</div></div></div> @* Cantidad de clientes *@
+</div> @* Fin de la fila *@
+
+<div class="row g-3"> @* Fila: tabla por estado + actividad reciente *@
+    <div class="col-lg-8"> @* Columna izquierda *@
+        <div class="card h-100"> @* Tarjeta *@
+            <div class="card-header">Pedidos y montos por estado</div> @* Título *@
+            <div class="table-responsive"> @* Tabla desplazable *@
+                <table class="table align-middle mb-0"> @* Tabla: cada fila es un estado *@
+                    <thead><tr><th>Estado</th><th class="text-end">Pedidos</th><th class="text-end">Monto</th><th style="width: 35%">Proporción del monto</th></tr></thead> @* Encabezados *@
+                    <tbody> @* Cuerpo *@
+                        @* Una fila por estado (incluye los que tienen 0) *@
+                        @foreach (var r in Model.PorEstado)
+                        {
+                            var ancho = maxMonto == 0 ? 0 : r.Monto / maxMonto * 100; // Largo de la barra en % respecto del mayor
+                            var porcentaje = Model.MontoTotal == 0 ? 0 : r.Monto / Model.MontoTotal * 100; // Participación sobre el total
+                            <tr title="@EstadoMapper.Nombre(r.Estado): @r.Cantidad pedido(s), @Formato.Moneda(r.Monto) (@Formato.Porcentaje(porcentaje) del total)"> @* Fila con ayuda al pasar el mouse *@
+                                <td><a asp-controller="Pedidos" asp-action="Index" asp-route-estado="@r.Estado" class="text-decoration-none"><partial name="_EstadoBadge" model="r.Estado" /></a></td> @* Estado con enlace al listado filtrado *@
+                                <td class="text-end num">@r.Cantidad</td> @* Cantidad *@
+                                <td class="text-end num text-nowrap">@Formato.Moneda(r.Monto)</td> @* Monto *@
+                                <td> @* Barra proporcional *@
+                                    <div class="d-flex align-items-center gap-2"> @* Barra + porcentaje *@
+                                        <div class="barra-fondo flex-grow-1"><div class="barra" style="width: @ancho.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div> @* Barra azul (el ancho usa punto decimal porque es CSS) *@
+                                        <span class="small num text-nowrap" style="width: 4.5em; color: var(--gris-azulado)">@Formato.Porcentaje(porcentaje)</span> @* Porcentaje del total *@
+                                    </div> @* Fin de barra + porcentaje *@
+                                </td> @* Fin de la celda *@
+                            </tr> @* Fin de la fila *@
+                        }
+                    </tbody> @* Fin del cuerpo *@
+                    <tfoot> @* Pie de tabla con totales *@
+                        <tr class="fw-semibold"><td>Total</td><td class="text-end num">@Model.TotalPedidos</td><td class="text-end num text-nowrap">@Formato.Moneda(Model.MontoTotal)</td><td></td></tr> @* Fila de totales *@
+                    </tfoot> @* Fin del pie *@
+                </table> @* Fin de la tabla *@
+            </div> @* Fin del contenedor *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna izquierda *@
+
+    <div class="col-lg-4"> @* Columna derecha *@
+        <div class="card h-100"> @* Tarjeta *@
+            <div class="card-header">Últimos cambios de estado</div> @* Título *@
+            <ul class="list-group list-group-flush small"> @* Lista *@
+                @* Un renglón por cambio reciente *@
+                @foreach (var h in Model.UltimosCambios)
+                {
+                    <li class="list-group-item"> @* Renglón *@
+                        <a asp-controller="Pedidos" asp-action="Details" asp-route-id="@h.PedidoId">Pedido #@h.PedidoId</a> → <partial name="_EstadoBadge" model="h.EstadoNuevo" /> @* Pedido y estado nuevo *@
+                        <div style="color: var(--gris-azulado)">@Formato.Fecha(h.Fecha) · @h.Origen · @h.Usuario</div> @* Cuándo, cómo y quién *@
+                    </li> @* Fin del renglón *@
+                }
+            </ul> @* Fin de la lista *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna derecha *@
+</div> @* Fin de la fila *@

@@ -1,0 +1,73 @@
+@* Pantalla para enviar un webhook de prueba (firmado o no) y ver la respuesta del servidor *@
+@* La vista recibe el formulario y, después de enviar, el resultado *@
+@model ProbarWebhookViewModel
+@{
+    ViewData["Title"] = "Probar webhook"; // Título de la pestaña
+    var estados = new[] { "PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "ESTADO_INVENTADO" }; // Estados para elegir (el último sirve para ver un rechazo)
+}
+
+<h1 class="h3 mb-1">Probar webhook</h1> @* Título *@
+<p style="color: var(--gris-azulado)">Envía un aviso real por HTTP a <code>/api/webhooks/orders</code>, igual que lo haría un sistema externo.</p> @* Explicación *@
+
+<div class="row g-3"> @* Dos columnas: formulario y resultado *@
+    <div class="col-lg-5"> @* Columna formulario *@
+        <div class="card"> @* Tarjeta *@
+            <div class="card-header">Evento a enviar</div> @* Título *@
+            <div class="card-body"> @* Contenido *@
+                <form asp-action="ProbarWebhook" method="post"> @* POST /Home/ProbarWebhook (con token anti-falsificación) *@
+                    <div class="mb-3"> @* Bloque pedido *@
+                        <label asp-for="PedidoId" class="form-label"></label> @* Etiqueta *@
+                        <input asp-for="PedidoId" type="number" min="1" class="form-control" /> @* Número de pedido *@
+                        <span asp-validation-for="PedidoId" class="text-danger small"></span> @* Error del campo *@
+                    </div> @* Fin del bloque *@
+                    <div class="mb-3"> @* Bloque estado *@
+                        <label asp-for="Estado" class="form-label"></label> @* Etiqueta *@
+                        <select asp-for="Estado" class="form-select"> @* Combo de estados *@
+                            @* Una opción por estado *@
+                            @foreach (var e in estados)
+                            {
+                                <option value="@e">@e</option> @* Opción *@
+                            }
+                        </select> @* Fin del combo *@
+                    </div> @* Fin del bloque *@
+                    <div class="mb-3"> @* Bloque seguridad *@
+                        <label class="form-label">Seguridad</label> @* Etiqueta *@
+                        <div class="form-check"><input class="form-check-input" type="radio" asp-for="Modo" value="firma" id="m1" /><label class="form-check-label" for="m1">Firma HMAC correcta (fuente autorizada)</label></div> @* Opción 1: debería procesarse *@
+                        <div class="form-check"><input class="form-check-input" type="radio" asp-for="Modo" value="firma-invalida" id="m2" /><label class="form-check-label" for="m2">Firma con clave equivocada (fuente no autorizada)</label></div> @* Opción 2: debería rechazarse con 401 *@
+                        <div class="form-check"><input class="form-check-input" type="radio" asp-for="Modo" value="sin-firma" id="m3" /><label class="form-check-label" for="m3">Sin firma ni clave</label></div> @* Opción 3: debería rechazarse con 401 *@
+                    </div> @* Fin del bloque *@
+                    <button type="submit" class="btn btn-primary">Enviar evento</button> @* Envía *@
+                    <a asp-action="Webhooks" class="btn btn-link">Ver historial</a> @* Ir al historial *@
+                </form> @* Fin del formulario *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+
+    <div class="col-lg-7"> @* Columna resultado *@
+        @* El resultado solo aparece después de enviar *@
+        @if (Model.CodigoRespuesta is int codigo)
+        {
+            var ok = codigo == 200; // ¿Se procesó?
+            <div class="alert @(ok ? "alert-success" : "alert-danger")"> @* Azul si salió bien, rojo si fue rechazado *@
+                <strong>@(ok ? "✓ Evento procesado correctamente" : "✗ Evento rechazado")</strong> · respuesta HTTP <span class="num">@codigo</span> @* Resultado claro *@
+            </div> @* Fin del aviso *@
+            <div class="card"> @* Tarjeta con el detalle técnico *@
+                <div class="card-header">Detalle del envío</div> @* Título *@
+                <div class="card-body small"> @* Contenido *@
+                    <div class="mb-2"><strong>Cuerpo enviado:</strong><pre class="mb-0 p-2 rounded" style="background: var(--azul-100)">@Model.CuerpoEnviado</pre></div> @* JSON enviado *@
+                    <div class="mb-2"><strong>Firma (X-Webhook-Signature):</strong><pre class="mb-0 p-2 rounded text-wrap" style="background: var(--azul-100)">@(Model.FirmaEnviada ?? "(no se envió)")</pre></div> @* Firma enviada *@
+                    <div><strong>Respuesta del servidor:</strong><pre class="mb-0 p-2 rounded text-wrap" style="background: var(--azul-100)">@Model.RespuestaJson</pre></div> @* Respuesta *@
+                </div> @* Fin del contenido *@
+            </div> @* Fin de la tarjeta *@
+            @* Enlace al pedido si se procesó *@
+            @if (ok)
+            {
+                <a class="btn btn-outline-primary mt-3" asp-controller="Pedidos" asp-action="Details" asp-route-id="@Model.PedidoId">Ver pedido #@Model.PedidoId</a> @* Ir al pedido actualizado *@
+            }
+        }
+        else
+        {
+            <div class="alert alert-info">Elegí los datos y tocá <strong>Enviar evento</strong>. El resultado aparece acá y queda guardado en el historial.</div> @* Instrucción inicial *@
+        }
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

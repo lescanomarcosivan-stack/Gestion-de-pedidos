@@ -11,6 +11,7 @@
 
   <ItemGroup> <!-- Grupo donde se declaran las librerías externas (paquetes NuGet) -->
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" /> <!-- Conector de Entity Framework Core para PostgreSQL (trae EF Core incluido) -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.12" /> <!-- Inicio de sesión con cuentas de Google (OAuth 2.0) -->
   </ItemGroup> <!-- Fin de la lista de paquetes -->
 
 </Project> <!-- Fin del archivo de proyecto -->
