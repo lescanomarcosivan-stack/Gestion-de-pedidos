@@ -82,13 +82,13 @@ public class ClientesController : Controller // Hereda de Controller: puede devo
 
     // GET /Clientes/Create → muestra el formulario vacío
     [Authorize(Roles = Roles.Edicion)] // Solo Administrador u Operador
-    public IActionResult Create() => View("Formulario", new Cliente()); // Reutiliza la vista "Formulario" con un cliente nuevo (Id = 0)
+    public IActionResult Create() => View("Formulario", new Cliente { NotificarPorEmail = true }); // Reutiliza la vista "Formulario" con un cliente nuevo (Id = 0); la casilla de emails arranca marcada
 
     // POST /Clientes/Create → recibe el formulario y guarda el cliente nuevo
     [HttpPost] // Este método solo responde a envíos de formulario (POST)
     [ValidateAntiForgeryToken] // Seguridad: verifica que el formulario venga de nuestra propia página (evita ataques CSRF)
     [Authorize(Roles = Roles.Edicion)] // Solo Administrador u Operador
-    public async Task<IActionResult> Create([Bind("Nombre,Email,Telefono,Ciudad")] Cliente cliente) // [Bind] = solo aceptamos estos campos (evita que nos inyecten otros)
+    public async Task<IActionResult> Create([Bind("Nombre,Email,Telefono,Ciudad,NotificarPorEmail")] Cliente cliente) // [Bind] = solo aceptamos estos campos (evita que nos inyecten otros)
     { // Inicio del método
         if (await _db.Clientes.AnyAsync(c => c.Email == cliente.Email)) // Si ya existe un cliente con ese email...
             ModelState.AddModelError(nameof(Cliente.Email), "Ya existe un cliente con ese email"); // ...agregamos un error al campo Email
@@ -116,7 +116,7 @@ public class ClientesController : Controller // Hereda de Controller: puede devo
     [HttpPost] // Solo para envíos de formulario
     [ValidateAntiForgeryToken] // Protección contra formularios falsos
     [Authorize(Roles = Roles.Edicion)] // Solo Administrador u Operador
-    public async Task<IActionResult> Edit(int id, [Bind("Nombre,Email,Telefono,Ciudad")] Cliente datos) // "datos" trae lo que escribió el usuario
+    public async Task<IActionResult> Edit(int id, [Bind("Nombre,Email,Telefono,Ciudad,NotificarPorEmail")] Cliente datos) // "datos" trae lo que escribió el usuario
     { // Inicio del método
         var cliente = await _db.Clientes.FindAsync(id); // Buscamos el cliente original en la base
         if (cliente is null) return NotFound(); // Si no existe, 404
@@ -136,11 +136,13 @@ public class ClientesController : Controller // Hereda de Controller: puede devo
         Comparar("Email", cliente.Email, datos.Email); // Compara email
         Comparar("Teléfono", cliente.Telefono, datos.Telefono); // Compara teléfono
         Comparar("Ciudad", cliente.Ciudad, datos.Ciudad); // Compara ciudad
+        Comparar("Notificaciones", cliente.NotificarPorEmail ? "Sí" : "No", datos.NotificarPorEmail ? "Sí" : "No"); // Compara el consentimiento de emails
 
         cliente.Nombre = datos.Nombre; // Copiamos los campos editables al cliente original
         cliente.Email = datos.Email; // Email nuevo
         cliente.Telefono = datos.Telefono; // Teléfono nuevo
         cliente.Ciudad = datos.Ciudad; // Ciudad nueva
+        cliente.NotificarPorEmail = datos.NotificarPorEmail; // Consentimiento de emails
         if (cambios.Count > 0) // Solo si realmente cambió algo...
             _auditoria.Registrar(TipoRegistro.Actividad, "Edición de cliente", string.Join(" | ", cambios), "Cliente", id); // ...lo registramos (se guarda junto con el UPDATE)
         await _db.SaveChangesAsync(); // EF detecta qué cambió y ejecuta el UPDATE (y el INSERT de la bitácora)
