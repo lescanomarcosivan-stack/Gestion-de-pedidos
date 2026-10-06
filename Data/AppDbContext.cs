@@ -14,6 +14,9 @@ public class AppDbContext : DbContext // Hereda de DbContext, la clase base de E
     public DbSet<Usuario> Usuarios => Set<Usuario>(); // Tabla "Usuarios" (quién puede entrar y con qué rol)
     public DbSet<HistorialEstado> HistorialEstados => Set<HistorialEstado>(); // Tabla "HistorialEstados" (cambios de estado de cada pedido)
     public DbSet<RegistroActividad> RegistrosActividad => Set<RegistroActividad>(); // Tabla "RegistrosActividad" (accesos, errores, webhooks, actividad)
+    public DbSet<Producto> Productos => Set<Producto>(); // Tabla "Productos" (catálogo con stock)
+    public DbSet<PedidoItem> PedidoItems => Set<PedidoItem>(); // Tabla "PedidoItems" (renglones de cada pedido)
+    public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>(); // Tabla "MovimientosStock" (entradas y salidas de stock)
 
     // Nombres de todas las tablas: Program.cs los usa para detectar si la base es de una versión anterior
     public static readonly string[] TablasEsperadas = { "Clientes", "Pedidos", "EventosWebhook", "Usuarios", "HistorialEstados", "RegistrosActividad" }; // Deben coincidir con los DbSet de arriba
@@ -76,5 +79,57 @@ public class AppDbContext : DbContext // Hereda de DbContext, la clase base de E
 
         modelBuilder.Entity<RegistroActividad>() // Otro índice
             .HasIndex(r => new { r.EntidadTipo, r.EntidadId }); // Acelera "cambios del cliente 3"
+
+        modelBuilder.Entity<Pedido>() // Descuento general del pedido
+            .Property(p => p.DescuentoPorcentaje) // Columna DescuentoPorcentaje...
+            .HasPrecision(5, 2); // ...hasta 100,00
+
+        modelBuilder.Entity<Producto>() // Configuración de Productos
+            .HasIndex(p => p.Codigo) // Índice por código...
+            .IsUnique(); // ...único: no puede haber dos productos con el mismo código
+
+        modelBuilder.Entity<Producto>() // Precio del producto
+            .Property(p => p.Precio) // Columna Precio...
+            .HasPrecision(12, 2); // ...numeric(12,2)
+
+        modelBuilder.Entity<PedidoItem>() // Configuración de los renglones
+            .Property(i => i.PrecioUnitario) // Precio copiado al vender...
+            .HasPrecision(12, 2); // ...numeric(12,2)
+
+        modelBuilder.Entity<PedidoItem>() // Descuento del renglón
+            .Property(i => i.DescuentoPorcentaje) // Columna...
+            .HasPrecision(5, 2); // ...hasta 100,00
+
+        modelBuilder.Entity<PedidoItem>() // Relación renglón → pedido
+            .HasOne(i => i.Pedido) // Cada renglón pertenece a UN pedido...
+            .WithMany(p => p.Items) // ...y un pedido tiene MUCHOS renglones
+            .HasForeignKey(i => i.PedidoId) // Columna que los une
+            .OnDelete(DeleteBehavior.Cascade); // Si se borra el pedido, se borran sus renglones
+
+        modelBuilder.Entity<PedidoItem>() // Relación renglón → producto
+            .HasOne(i => i.Producto) // Cada renglón es de UN producto...
+            .WithMany() // ...y un producto aparece en muchos renglones
+            .HasForeignKey(i => i.ProductoId) // Columna que los une
+            .OnDelete(DeleteBehavior.Restrict); // No se puede borrar un producto que ya se vendió
+
+        modelBuilder.Entity<MovimientoStock>() // Configuración de movimientos
+            .Property(m => m.Tipo) // Tipo de movimiento...
+            .HasConversion<string>() // ...guardado como texto
+            .HasMaxLength(20); // ...máximo 20 caracteres
+
+        modelBuilder.Entity<MovimientoStock>() // Relación movimiento → producto
+            .HasOne(m => m.Producto) // Cada movimiento es de UN producto...
+            .WithMany() // ...y un producto tiene muchos movimientos
+            .HasForeignKey(m => m.ProductoId) // Columna que los une
+            .OnDelete(DeleteBehavior.Cascade); // Si se borrara el producto, se borran sus movimientos
+
+        modelBuilder.Entity<MovimientoStock>() // Relación movimiento → pedido (opcional)
+            .HasOne(m => m.Pedido) // Un movimiento puede venir de UN pedido...
+            .WithMany() // ...y un pedido genera varios movimientos
+            .HasForeignKey(m => m.PedidoId) // Columna que los une (puede ser null)
+            .OnDelete(DeleteBehavior.SetNull); // Si se borrara el pedido, el movimiento queda sin referencia
+
+        modelBuilder.Entity<MovimientoStock>() // Índice de movimientos
+            .HasIndex(m => m.ProductoId); // Acelera "movimientos del producto 3"
     } // Fin del método
 } // Fin de la clase

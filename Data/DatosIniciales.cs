@@ -1,4 +1,5 @@
 using GestionPedidos.Models; // Para usar Cliente, Pedido, Usuario, etc.
+using GestionPedidos.Services; // Para Calculos (total y resumen del pedido)
 using Microsoft.AspNetCore.Identity; // Para IPasswordHasher (cifrado seguro de contraseñas)
 using Microsoft.EntityFrameworkCore; // Para AnyAsync y SaveChangesAsync
 
@@ -29,6 +30,35 @@ public static class DatosIniciales // Clase estática de ayuda
         await db.SaveChangesAsync(); // INSERT en PostgreSQL
     } // Fin del método
 
+    // Crea productos de ejemplo si no hay ninguno (también sirve para bases que ya tenían datos de una versión anterior)
+    public static async Task CargarProductosAsync(AppDbContext db) // Método asíncrono
+    { // Inicio del método
+        if (await db.Productos.AnyAsync()) return; // Si ya hay productos, no hacemos nada
+        var productos = new List<Producto> // Catálogo de ejemplo
+        { // Inicio de la lista
+            new() { Codigo = "TOR-500", Nombre = "Caja de tornillos x500", Precio = 8500m, Stock = 120, StockMinimo = 20 }, // Producto 1
+            new() { Codigo = "PIN-20L", Nombre = "Pintura látex 20L", Precio = 45900m, Stock = 35, StockMinimo = 10 }, // Producto 2
+            new() { Codigo = "RES-A4", Nombre = "Resma A4 x10", Precio = 32000m, Stock = 60, StockMinimo = 15 }, // Producto 3
+            new() { Codigo = "YER-1K", Nombre = "Yerba 1kg x12", Precio = 54000m, Stock = 80, StockMinimo = 20 }, // Producto 4
+            new() { Codigo = "CAB-25", Nombre = "Cable 2.5mm x100m", Precio = 61500m, Stock = 25, StockMinimo = 8 }, // Producto 5
+            new() { Codigo = "LAM-LED", Nombre = "Lámpara LED 12W", Precio = 2900.50m, Stock = 200, StockMinimo = 40 }, // Producto 6
+            new() { Codigo = "CIN-AIS", Nombre = "Cinta aisladora x10", Precio = 6200m, Stock = 12, StockMinimo = 15 }, // Producto 7 (arranca con stock bajo, para ver la alerta)
+            new() { Codigo = "GUA-TRA", Nombre = "Guantes de trabajo (par)", Precio = 4750m, Stock = 90, StockMinimo = 25 } // Producto 8
+        }; // Fin de la lista
+        db.Productos.AddRange(productos); // Marca para insertar
+        await db.SaveChangesAsync(); // INSERT (ahora tienen Id)
+        db.MovimientosStock.AddRange(productos.Select(p => new MovimientoStock // Un movimiento de "ingreso inicial" por producto, para que el historial cierre
+        { // Inicio de los datos
+            ProductoId = p.Id, // Producto
+            Tipo = TipoMovimiento.Ingreso, // Entrada
+            Cantidad = p.Stock, // Todo el stock inicial
+            StockResultante = p.Stock, // Queda igual al stock cargado
+            Usuario = "datos de ejemplo", // No lo hizo un usuario real
+            Motivo = "Stock inicial" // Explicación
+        })); // Fin de los movimientos
+        await db.SaveChangesAsync(); // INSERT de los movimientos
+    } // Fin del método
+
     // Crea clientes y pedidos de ejemplo si la base está vacía
     public static async Task CargarAsync(AppDbContext db) // "async Task" = método asíncrono (no bloquea mientras espera a la base)
     { // Inicio del método
@@ -45,20 +75,34 @@ public static class DatosIniciales // Clase estática de ayuda
         db.Clientes.AddRange(clientes); // Marca los 5 clientes para insertarlos
         await db.SaveChangesAsync(); // Ejecuta el INSERT en PostgreSQL; ahora cada cliente tiene su Id
 
-        var productos = new[] { "Caja de tornillos x500", "Pintura látex 20L", "Resma A4 x10", "Yerba 1kg x12", "Cable 2.5mm x100m" }; // Productos para inventar pedidos
+        var catalogo = await db.Productos.OrderBy(p => p.Id).ToListAsync(); // Productos ya cargados (CargarProductosAsync se ejecuta antes)
         var estados = Enum.GetValues<EstadoPedido>(); // Todos los estados posibles, para variar
         var pedidos = new List<Pedido>(); // Lista vacía donde vamos a ir agregando pedidos
         for (var i = 1; i <= 25; i++) // Creamos 25 pedidos (así hay más de una página y existe el pedido 15 del PDF)
         { // Inicio del ciclo
-            pedidos.Add(new Pedido // Agregamos un pedido nuevo a la lista
+            var pedido = new Pedido // Pedido nuevo
             { // Inicio de los datos del pedido
                 ClienteId = clientes[i % clientes.Count].Id, // Reparte los pedidos entre los 5 clientes
-                Descripcion = productos[i % productos.Length], // Elige un producto de la lista
-                Monto = 1500m * i + 0.5m * (i % 3), // Monto inventado con algunos centavos, para ver el formato $ 1.234,50
                 Estado = i <= 15 ? EstadoPedido.Pendiente : estados[i % estados.Length], // Los primeros 15 quedan Pendientes para probar el webhook
+                DescuentoPorcentaje = i % 4 == 0 ? 5 : 0, // Algunos con 5 % de descuento general
                 FechaCreacion = DateTime.UtcNow.AddDays(-i), // Fechas escalonadas hacia atrás para probar filtros
                 FechaActualizacion = DateTime.UtcNow.AddDays(-i) // Misma fecha de actualización que de creación
-            }); // Fin del pedido
+            }; // Fin de los datos
+            for (var r = 0; r < 1 + i % 3; r++) // Entre 1 y 3 renglones por pedido
+            { // Inicio de los renglones
+                var producto = catalogo[(i + r * 3) % catalogo.Count]; // Elige un producto del catálogo
+                pedido.Items.Add(new PedidoItem // Renglón
+                { // Inicio del renglón
+                    ProductoId = producto.Id, // Producto
+                    ProductoNombre = producto.Nombre, // Copia del nombre
+                    PrecioUnitario = producto.Precio, // Copia del precio
+                    Cantidad = 1 + (i + r) % 4, // Entre 1 y 4 unidades
+                    DescuentoPorcentaje = r == 1 ? 10 : 0 // El segundo renglón con 10 % de descuento
+                }); // Fin del renglón
+            } // Fin de los renglones
+            pedido.Monto = Calculos.TotalPedido(pedido); // Total calculado con los descuentos
+            pedido.Descripcion = Calculos.Resumen(pedido); // Ej. "2 × Yerba 1kg, 1 × Cable"
+            pedidos.Add(pedido); // Lo sumamos a la lista
         } // Fin del ciclo
         db.Pedidos.AddRange(pedidos); // Marca los pedidos para insertarlos
         await db.SaveChangesAsync(); // Ejecuta el INSERT de los pedidos (ahora tienen Id)
