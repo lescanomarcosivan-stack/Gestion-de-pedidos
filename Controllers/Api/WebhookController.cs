@@ -5,6 +5,7 @@ using GestionPedidos.Services; // Para EstadoMapper, FirmaWebhook e IAuditoria
 using Microsoft.AspNetCore.Authorization; // Para [AllowAnonymous]
 using Microsoft.AspNetCore.Mvc; // Para ControllerBase, [ApiController], [HttpPost], etc.
 using Microsoft.AspNetCore.RateLimiting; // Para [EnableRateLimiting]
+using Microsoft.EntityFrameworkCore; // Para Include y FirstOrDefaultAsync
 
 namespace GestionPedidos.Controllers.Api; // Namespace de los controladores de API (devuelven JSON, no páginas)
 
@@ -22,9 +23,13 @@ public class WebhookController : ControllerBase // ControllerBase = controlador 
     private readonly IConfiguration _config; // Acceso a la configuración (para leer la clave secreta)
     private readonly IAuditoria _auditoria; // Bitácora general
     private readonly ILogger<WebhookController> _logger; // Para registrar cada aviso en el log
+    private readonly IStockService _stock; // Control de stock (cancelar devuelve, reabrir descuenta)
+    private readonly INotificador _notificador; // Emails
 
-    public WebhookController(AppDbContext db, IConfiguration config, IAuditoria auditoria, ILogger<WebhookController> logger) // Inyección de dependencias
+    public WebhookController(AppDbContext db, IConfiguration config, IAuditoria auditoria, ILogger<WebhookController> logger, IStockService stock, INotificador notificador) // Inyección de dependencias
     { // Inicio del constructor
+        _stock = stock; // Guardamos el servicio de stock
+        _notificador = notificador; // Guardamos el notificador
         _db = db; // Guardamos el DbContext
         _config = config; // Guardamos la configuración
         _auditoria = auditoria; // Guardamos la bitácora
@@ -63,7 +68,7 @@ public class WebhookController : ControllerBase // ControllerBase = controlador 
         if (!EstadoMapper.TryTraducir(solicitud.Status, out var nuevoEstado)) // Estado desconocido
             return await RegistrarAsync(solicitud, StatusCodes.Status400BadRequest, $"Estado desconocido: '{solicitud.Status}'", metodo); // 400
 
-        var pedido = await _db.Pedidos.FindAsync(solicitud.OrderId.Value); // Buscamos el pedido en la base
+        var pedido = await _db.Pedidos.Include(p => p.Cliente).Include(p => p.Items).FirstOrDefaultAsync(p => p.Id == solicitud.OrderId.Value); // Buscamos el pedido con su cliente y productos
         if (pedido is null) // No existe
             return await RegistrarAsync(solicitud, StatusCodes.Status404NotFound, $"No existe el pedido {solicitud.OrderId}", metodo); // 404
 
@@ -72,11 +77,18 @@ public class WebhookController : ControllerBase // ControllerBase = controlador 
         if (estadoAnterior == nuevoEstado) // Si ya estaba en ese estado (aviso repetido)...
             return await RegistrarAsync(solicitud, StatusCodes.Status200OK, $"Pedido {pedido.Id}: ya estaba en {EstadoMapper.Nombre(nuevoEstado)} (sin cambios)", metodo); // ...respondemos OK sin duplicar el historial
 
+        var erroresStock = await _stock.AplicarCambioEstadoAsync(pedido, estadoAnterior, nuevoEstado, "webhook"); // Cancelar devuelve stock; reabrir vuelve a descontar
+        if (erroresStock.Count > 0) // Reabrir sin stock suficiente
+            return await RegistrarAsync(solicitud, StatusCodes.Status409Conflict, $"No se puede reabrir el pedido {pedido.Id}: falta stock ({string.Join("; ", erroresStock)})", metodo); // 409 = conflicto con el estado actual
+
         pedido.Estado = nuevoEstado; // Actualizamos el estado
         pedido.FechaActualizacion = DateTime.UtcNow; // Registramos cuándo cambió
         _db.HistorialEstados.Add(new HistorialEstado { PedidoId = pedido.Id, EstadoAnterior = estadoAnterior, EstadoNuevo = nuevoEstado, Origen = "Webhook", Usuario = "webhook" }); // Historial del pedido
-        return await RegistrarAsync(solicitud, StatusCodes.Status200OK, // Guardamos todo junto y respondemos 200
+        var respuesta = await RegistrarAsync(solicitud, StatusCodes.Status200OK, // Guardamos todo junto y respondemos 200
             $"Pedido {pedido.Id}: {EstadoMapper.Nombre(estadoAnterior)} → {EstadoMapper.Nombre(nuevoEstado)}", metodo); // Mensaje con el cambio realizado
+        _notificador.EstadoCambiado(pedido, estadoAnterior, nuevoEstado); // Emails (después de guardar)
+        _notificador.StockBajo(_stock.CruzaronMinimo); // Aviso de stock bajo si corresponde
+        return respuesta; // Respuesta al sistema externo
     } // Fin del método
 
     // Verifica que el aviso venga de alguien que conoce la clave secreta
