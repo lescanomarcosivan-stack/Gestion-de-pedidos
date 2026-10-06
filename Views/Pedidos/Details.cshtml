@@ -93,6 +93,45 @@
     </div> @* Fin de la columna derecha *@
 </div> @* Fin de la grilla *@
 
+<div class="card mt-3"> @* Tarjeta de productos del pedido *@
+    <div class="card-header">Productos</div> @* Título *@
+    @* Pedidos de antes de esta versión no tienen renglones *@
+    @if (p.Items.Count == 0)
+    {
+        <div class="card-body small" style="color: var(--gris-azulado)">Pedido cargado antes de la versión con productos: solo tiene descripción y monto.</div> @* Aviso *@
+    }
+    else
+    {
+        <div class="table-responsive"> @* Tabla desplazable *@
+            <table class="table align-middle mb-0"> @* Tabla *@
+                <thead><tr><th>Producto</th><th class="text-end">Cantidad</th><th class="text-end">Precio unit.</th><th class="text-end">Desc.</th><th class="text-end">Subtotal</th></tr></thead> @* Encabezados *@
+                <tbody> @* Cuerpo *@
+                    @* Un renglón por producto *@
+                    @foreach (var i in p.Items)
+                    {
+                        <tr> @* Fila *@
+                            <td><a asp-controller="Productos" asp-action="Details" asp-route-id="@i.ProductoId">@i.ProductoNombre</a></td> @* Producto (nombre copiado al momento de la venta) *@
+                            <td class="text-end num">@i.Cantidad</td> @* Cantidad *@
+                            <td class="text-end num text-nowrap">@Formato.Moneda(i.PrecioUnitario)</td> @* Precio copiado al momento de la venta *@
+                            <td class="text-end num">@(i.DescuentoPorcentaje > 0 ? Formato.Porcentaje(i.DescuentoPorcentaje) : "—")</td> @* Descuento del renglón *@
+                            <td class="text-end num text-nowrap">@Formato.Moneda(i.Subtotal)</td> @* Subtotal *@
+                        </tr> @* Fin de la fila *@
+                    }
+                </tbody> @* Fin del cuerpo *@
+                <tfoot> @* Totales *@
+                    <tr><td colspan="4" class="text-end">Subtotal</td><td class="text-end num text-nowrap">@Formato.Moneda(p.Subtotal)</td></tr> @* Suma de renglones *@
+                    @* El descuento general solo se muestra si existe *@
+                    @if (p.DescuentoPorcentaje > 0)
+                    {
+                        <tr><td colspan="4" class="text-end">Descuento general (@Formato.Porcentaje(p.DescuentoPorcentaje))</td><td class="text-end num text-nowrap text-danger">- @Formato.Moneda(Calculos.ImporteDescuentoGeneral(p))</td></tr> @* Importe descontado *@
+                    }
+                    <tr class="fw-bold"><td colspan="4" class="text-end">Total</td><td class="text-end num text-nowrap @(p.Estado == EstadoPedido.Cancelado ? "monto-cancelado" : "")">@Formato.Moneda(p.Monto)</td></tr> @* Total (tachado si está cancelado) *@
+                </tfoot> @* Fin de totales *@
+            </table> @* Fin de la tabla *@
+        </div> @* Fin del contenedor *@
+    }
+</div> @* Fin de la tarjeta de productos *@
+
 <div class="card mt-3"> @* Tarjeta del historial *@
     <div class="card-header">Historial de estados</div> @* Título *@
     <div class="table-responsive"> @* Tabla desplazable *@

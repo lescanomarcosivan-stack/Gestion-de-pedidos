@@ -1,41 +1,144 @@
-@* Formulario para crear un pedido asociado a un cliente *@
-@* La vista recibe un Pedido nuevo (puede venir con el ClienteId ya elegido) *@
-@model Pedido
+@* Formulario de nuevo pedido con varios productos, cantidades y descuentos (el total se calcula en pantalla y se recalcula en el servidor) *@
+@* La vista recibe el formulario (cliente, renglones, descuento general) *@
+@model PedidoFormulario
 @{
     ViewData["Title"] = "Nuevo pedido"; // Título de la pestaña
+    var productos = (List<Producto>)ViewBag.Productos; // Productos activos (con precio y stock)
+    var inv = System.Globalization.CultureInfo.InvariantCulture; // Para escribir números con punto en atributos HTML (los lee JavaScript)
 }
 
 <h1 class="h3 mb-3">Nuevo pedido</h1> @* Título *@
 
-<div class="card"> @* Tarjeta del formulario *@
-    <div class="card-body"> @* Contenido *@
-        <form asp-action="Create" method="post"> @* Envía a POST /Pedidos/Create (incluye token anti-falsificación) *@
-            <div class="mb-3"> @* Bloque Cliente *@
-                <label asp-for="ClienteId" class="form-label"></label> @* Etiqueta "Cliente" *@
-                <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="form-select"> @* Combo con los clientes que armó el controlador *@
-                    <option value="0">— Elegí un cliente —</option> @* Opción vacía (vale 0 y la validación la rechaza) *@
-                </select> @* Fin del combo *@
-                <span asp-validation-for="ClienteId" class="text-danger small"></span> @* Error del campo *@
-            </div> @* Fin del bloque *@
+<form asp-action="Create" method="post" id="formPedido"> @* POST /Pedidos/Create (incluye token anti-falsificación) *@
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div> @* Errores generales (ej. stock insuficiente); se oculta si no hay *@
 
-            <div class="mb-3"> @* Bloque Descripción *@
-                <label asp-for="Descripcion" class="form-label"></label> @* Etiqueta *@
-                <textarea asp-for="Descripcion" class="form-control" rows="3"></textarea> @* Área de texto de varias líneas *@
-                <span asp-validation-for="Descripcion" class="text-danger small"></span> @* Error del campo *@
-            </div> @* Fin del bloque *@
+    <div class="card mb-3"> @* Tarjeta de datos generales *@
+        <div class="card-body row g-3"> @* Contenido en grilla *@
+            <div class="col-md-6"> @* Cliente *@
+                <label asp-for="ClienteId" class="form-label"></label> @* Etiqueta *@
+                <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="form-select"><option value="0">— Elegí un cliente —</option></select> @* Combo de clientes *@
+                <span asp-validation-for="ClienteId" class="text-danger small"></span> @* Error *@
+            </div> @* Fin del cliente *@
+            <div class="col-md-6"> @* Observaciones *@
+                <label asp-for="Observaciones" class="form-label"></label> @* Etiqueta *@
+                <input asp-for="Observaciones" class="form-control" placeholder="Opcional. Si lo dejás vacío se arma con los productos" /> @* Texto libre *@
+            </div> @* Fin de observaciones *@
+        </div> @* Fin del contenido *@
+    </div> @* Fin de la tarjeta *@
 
-            <div class="mb-3"> @* Bloque Monto *@
-                <label asp-for="Monto" class="form-label"></label> @* Etiqueta *@
-                <div class="input-group"> @* Grupo: símbolo $ + campo *@
-                    <span class="input-group-text">$</span> @* Símbolo de pesos *@
-                    <input asp-for="Monto" type="number" step="0.01" min="0.01" class="form-control" placeholder="0,00" /> @* Número con 2 decimales (el navegador muestra la coma según el idioma de la PC) *@
-                </div> @* Fin del grupo *@
-                <span asp-validation-for="Monto" class="text-danger small"></span> @* Error del campo *@
-            </div> @* Fin del bloque *@
+    <div class="card mb-3"> @* Tarjeta de productos *@
+        <div class="card-header d-flex justify-content-between align-items-center"> @* Encabezado *@
+            <span>Productos</span> @* Título *@
+            <button type="button" class="btn btn-sm btn-primary" id="agregar">+ Agregar producto</button> @* Agrega un renglón (no envía el formulario) *@
+        </div> @* Fin del encabezado *@
+        <div class="table-responsive"> @* Tabla desplazable *@
+            <table class="table align-middle mb-0"> @* Tabla de renglones *@
+                <thead><tr><th style="width: 34%">Producto</th><th class="text-end">Precio unit.</th><th class="text-end">Stock</th><th style="width: 11%">Cantidad</th><th style="width: 11%">Desc. %</th><th class="text-end">Subtotal</th><th></th></tr></thead> @* Encabezados *@
+                <tbody id="renglones"> @* Los renglones (JavaScript los agrega y quita) *@
+                    @* Un renglón por ítem (al principio uno vacío; si hubo error, los que cargó el usuario) *@
+                    @for (var i = 0; i < Model.Items.Count; i++)
+                    {
+                        <tr class="renglon"> @* Renglón *@
+                            <td> @* Producto *@
+                                <select name="Items[@i].ProductoId" class="form-select form-select-sm producto"> @* Combo de productos; cada opción lleva precio y stock *@
+                                    <option value="0" data-precio="0" data-stock="0">— Elegí —</option> @* Opción vacía *@
+                                    @* Una opción por producto *@
+                                    @foreach (var p in productos)
+                                    {
+                                        <option value="@p.Id" data-precio="@p.Precio.ToString(inv)" data-stock="@p.Stock" selected="@(p.Id == Model.Items[i].ProductoId)">@p.Nombre (@p.Codigo)</option> @* Opción con datos para el cálculo *@
+                                    }
+                                </select> @* Fin del combo *@
+                            </td> @* Fin de la celda *@
+                            <td class="text-end num precio">—</td> @* Precio (lo completa JavaScript) *@
+                            <td class="text-end num stock">—</td> @* Stock disponible *@
+                            <td><input name="Items[@i].Cantidad" value="@Model.Items[i].Cantidad" type="number" min="1" class="form-control form-control-sm cantidad" /></td> @* Cantidad *@
+                            <td><input name="Items[@i].DescuentoPorcentaje" value="@Model.Items[i].DescuentoPorcentaje.ToString(inv)" type="number" min="0" max="100" step="0.01" class="form-control form-control-sm descuento" /></td> @* Descuento del renglón *@
+                            <td class="text-end num subtotal">—</td> @* Subtotal (lo calcula JavaScript) *@
+                            <td class="text-end"><button type="button" class="btn btn-sm btn-outline-secondary quitar" title="Quitar">✕</button></td> @* Quitar renglón *@
+                        </tr> @* Fin del renglón *@
+                    }
+                </tbody> @* Fin del cuerpo *@
+                <tfoot> @* Totales *@
+                    <tr><td colspan="5" class="text-end">Subtotal</td><td class="text-end num" id="subtotal">$ 0,00</td><td></td></tr> @* Suma de renglones *@
+                    <tr> @* Descuento general *@
+                        <td colspan="4" class="text-end align-middle"><label asp-for="DescuentoPorcentaje" class="mb-0"></label></td> @* Etiqueta *@
+                        <td><input asp-for="DescuentoPorcentaje" value="@Model.DescuentoPorcentaje.ToString(inv)" type="number" min="0" max="100" step="0.01" class="form-control form-control-sm" id="descuentoGeneral" /></td> @* Porcentaje *@
+                        <td class="text-end num text-danger" id="importeDescuento">$ 0,00</td><td></td> @* Importe descontado *@
+                    </tr> @* Fin del descuento *@
+                    <tr class="fw-bold fs-5"><td colspan="5" class="text-end">Total</td><td class="text-end num" id="total">$ 0,00</td><td></td></tr> @* Total final *@
+                </tfoot> @* Fin de totales *@
+            </table> @* Fin de la tabla *@
+        </div> @* Fin del contenedor *@
+    </div> @* Fin de la tarjeta *@
 
-            <p class="small" style="color: var(--gris-azulado)">El pedido se crea en estado <strong>Pendiente</strong>.</p> @* Aclaración para el usuario *@
-            <button type="submit" class="btn btn-primary">Crear pedido</button> @* Envía el formulario *@
-            <a class="btn btn-link" asp-action="Index">Cancelar</a> @* Vuelve sin guardar *@
-        </form> @* Fin del formulario *@
-    </div> @* Fin del contenido *@
-</div> @* Fin de la tarjeta *@
+    <p class="small" style="color: var(--gris-azulado)">El pedido se crea en estado <strong>Pendiente</strong> y descuenta el stock en ese momento. Los precios se toman del catálogo al guardar.</p> @* Aclaración *@
+    <button type="submit" class="btn btn-primary">Crear pedido</button> @* Envía el formulario *@
+    <a class="btn btn-link" asp-action="Index">Cancelar</a> @* Vuelve sin guardar *@
+</form> @* Fin del formulario *@
+
+<script>
+    // Cálculo en pantalla del pedido (solo para mostrar: el servidor vuelve a calcular todo con los precios de la base)
+    var moneda = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // Formato $ 1.234,56
+    var cuerpo = document.getElementById('renglones'); // Cuerpo de la tabla
+    function plata(n) { return '$ ' + moneda.format(n); } // Número → texto con $
+    function numero(input) { return parseFloat(input.value) || 0; } // Lee un campo numérico (vacío = 0)
+
+    function recalcular() { // Recalcula cada renglón y los totales
+        var subtotal = 0; // Acumulador
+        cuerpo.querySelectorAll('.renglon').forEach(function (fila) { // Por cada renglón
+            var opcion = fila.querySelector('.producto').selectedOptions[0]; // Producto elegido
+            var precio = parseFloat(opcion.dataset.precio) || 0; // Precio del producto
+            var stock = parseInt(opcion.dataset.stock) || 0; // Stock disponible
+            var cantidad = numero(fila.querySelector('.cantidad')); // Cantidad
+            var desc = Math.min(100, Math.max(0, numero(fila.querySelector('.descuento')))); // Descuento entre 0 y 100
+            var sub = Math.round(cantidad * precio * (1 - desc / 100) * 100) / 100; // Subtotal redondeado a centavos
+            var elegido = opcion.value !== '0'; // ¿Eligió producto?
+            fila.querySelector('.precio').textContent = elegido ? plata(precio) : '—'; // Muestra precio
+            var celdaStock = fila.querySelector('.stock'); // Celda de stock
+            celdaStock.textContent = elegido ? stock : '—'; // Muestra stock
+            celdaStock.className = 'text-end num stock' + (elegido && cantidad > stock ? ' text-danger fw-bold' : ''); // En rojo si pide más de lo que hay
+            fila.querySelector('.subtotal').textContent = elegido ? plata(sub) : '—'; // Muestra subtotal
+            if (elegido) subtotal += sub; // Suma al subtotal general
+        }); // Fin del recorrido
+        var descGeneral = Math.min(100, Math.max(0, numero(document.getElementById('descuentoGeneral')))); // Descuento general
+        var total = Math.round(subtotal * (1 - descGeneral / 100) * 100) / 100; // Total
+        document.getElementById('subtotal').textContent = plata(subtotal); // Muestra subtotal
+        document.getElementById('importeDescuento').textContent = '- ' + plata(subtotal - total); // Muestra descuento
+        document.getElementById('total').textContent = plata(total); // Muestra total
+    } // Fin de recalcular
+
+    function renumerar() { // Ajusta los nombres Items[0], Items[1]... para que el servidor los reciba en orden
+        cuerpo.querySelectorAll('.renglon').forEach(function (fila, i) { // Por cada renglón
+            fila.querySelectorAll('[name]').forEach(function (campo) { // Por cada campo
+                campo.name = campo.name.replace(/Items\[\d+\]/, 'Items[' + i + ']'); // Cambia el número
+            }); // Fin de campos
+        }); // Fin de renglones
+    } // Fin de renumerar
+
+    document.getElementById('agregar').addEventListener('click', function () { // Botón "+ Agregar producto"
+        var nueva = cuerpo.querySelector('.renglon').cloneNode(true); // Copia el primer renglón
+        nueva.querySelector('.producto').value = '0'; // Sin producto
+        nueva.querySelector('.cantidad').value = 1; // Cantidad 1
+        nueva.querySelector('.descuento').value = 0; // Sin descuento
+        cuerpo.appendChild(nueva); // Lo agrega al final
+        renumerar(); // Corrige los nombres
+        recalcular(); // Actualiza totales
+    }); // Fin del clic
+
+    cuerpo.addEventListener('click', function (e) { // Clic dentro de la tabla
+        if (!e.target.classList.contains('quitar')) return; // Solo nos interesa el botón ✕
+        if (cuerpo.querySelectorAll('.renglon').length === 1) { // Si es el único renglón...
+            var fila = cuerpo.querySelector('.renglon'); // ...no lo borramos: lo vaciamos
+            fila.querySelector('.producto').value = '0'; // Sin producto
+            fila.querySelector('.cantidad').value = 1; // Cantidad 1
+        } else { // Si hay más de uno...
+            e.target.closest('.renglon').remove(); // ...lo quitamos
+        } // Fin del if
+        renumerar(); // Corrige los nombres
+        recalcular(); // Actualiza totales
+    }); // Fin del clic
+
+    document.getElementById('formPedido').addEventListener('input', recalcular); // Cualquier cambio en el formulario recalcula
+    document.getElementById('formPedido').addEventListener('change', recalcular); // También al cambiar un combo
+    recalcular(); // Cálculo inicial (por si volvió con datos después de un error)
+</script>

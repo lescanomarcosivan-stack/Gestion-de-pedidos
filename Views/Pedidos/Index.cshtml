@@ -9,11 +9,15 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3"> @* Fila de título y botón *@
     <h1 class="h3 mb-0">Pedidos</h1> @* Título *@
-    @* El botón de crear solo aparece si el rol lo permite *@
-    @if (puedeEditar)
-    {
-        <a class="btn btn-primary" asp-action="Create">+ Nuevo pedido</a> @* Botón para crear pedido *@
-    }
+    <div class="d-flex gap-2"> @* Botones *@
+        <a class="btn btn-outline-secondary" asp-action="Exportar" asp-route-formato="excel" asp-route-q="@ViewBag.Q" asp-route-estado="@ViewBag.Estado" asp-route-desde="@ViewBag.Desde" asp-route-hasta="@ViewBag.Hasta">⬇ Excel</a> @* Exporta con los filtros actuales (todas las páginas) *@
+        <a class="btn btn-outline-secondary" asp-action="Exportar" asp-route-formato="pdf" asp-route-q="@ViewBag.Q" asp-route-estado="@ViewBag.Estado" asp-route-desde="@ViewBag.Desde" asp-route-hasta="@ViewBag.Hasta">⬇ PDF</a> @* Ídem en PDF *@
+        @* El botón de crear solo aparece si el rol lo permite *@
+        @if (puedeEditar)
+        {
+            <a class="btn btn-primary" asp-action="Create">+ Nuevo pedido</a> @* Botón para crear pedido *@
+        }
+    </div> @* Fin de los botones *@
 </div> @* Fin de la fila *@
 
 <form method="get" class="row g-2 mb-3 align-items-end"> @* Filtros: viajan en la URL por GET *@
