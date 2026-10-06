@@ -39,6 +39,12 @@
                 </div> @* Fin de la columna *@
             </div> @* Fin de la fila *@
 
+            <div class="form-check mb-3"> @* Consentimiento para emails *@
+                <input asp-for="NotificarPorEmail" class="form-check-input" /> @* Casilla *@
+                <label asp-for="NotificarPorEmail" class="form-check-label"></label> @* Etiqueta: "Recibe notificaciones por email" *@
+                <div class="form-text">Si está marcado, el cliente recibe un email cuando se crea su pedido y cuando se envía, entrega o cancela.</div> @* Explicación *@
+            </div> @* Fin del consentimiento *@
+
             <button type="submit" class="btn btn-primary">Guardar</button> @* Envía el formulario *@
             <a class="btn btn-link" asp-action="@(esNuevo ? "Index" : "Details")" asp-route-id="@idRuta">Cancelar</a> @* Vuelve sin guardar *@
         </form> @* Fin del formulario *@
