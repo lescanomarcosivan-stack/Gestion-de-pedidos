@@ -31,7 +31,7 @@ Las cuentas nuevas (con **Crear cuenta** o **Ingresar con Google**) quedan **ina
 - Clientes: alta, edición, ficha con pedidos e historial de cambios, búsqueda y filtro por ciudad.
 - Pedidos: alta, listado **paginado** (10 por página) con búsqueda, filtro por estado y rango de fechas, cambio de estado.
 - **Historial de estados** por pedido: quién, cuándo, de qué estado a cuál y por qué vía (Alta / Manual / Webhook).
-- **Dashboard**: cantidad y monto por estado, totales **sin cancelados** (los cancelados se muestran aparte en rojo), pedidos abiertos y últimos cambios.
+- **Dashboard**: cantidad y monto por estado, totales **sin cancelados** (los cancelados van en un cuadro separado, en rojo), pedidos abiertos y últimos cambios.
 - Los pedidos **cancelados** se muestran en rojo y con el monto tachado en todas las pantallas.
 - Montos en formato argentino (`$ 1.234,56`) y fechas en hora de Argentina.
 

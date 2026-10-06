@@ -62,6 +62,7 @@ public class DashboardViewModel // Se arma en HomeController.Index
     public decimal MontoTotal { get; set; } // Suma de los montos vigentes (los cancelados no suman)
     public int PedidosCancelados { get; set; } // Cantidad de pedidos cancelados (se informan aparte)
     public decimal MontoCancelado { get; set; } // Monto de los pedidos cancelados (se informa aparte, no suma)
+    public List<Pedido> UltimosCancelados { get; set; } = new(); // Últimos pedidos cancelados, para el cuadro separado de abajo
     public int PedidosAbiertos { get; set; } // Pedidos que no están entregados ni cancelados
     public decimal MontoAbierto { get; set; } // Monto de esos pedidos abiertos
     public int TotalClientes { get; set; } // Cantidad de clientes

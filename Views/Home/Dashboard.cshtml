@@ -3,14 +3,14 @@
 @model DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard"; // Título de la pestaña
-    var maxMonto = Model.PorEstado.Count == 0 ? 0 : Model.PorEstado.Max(r => r.Monto); // Monto más grande (la barra más larga ocupa el 100%); incluye cancelados solo para dibujar su barra
+    var maxMonto = Model.PorEstado.Count == 0 ? 0 : Model.PorEstado.Max(r => r.Monto); // Monto más grande entre los estados vigentes (la barra más larga ocupa el 100%)
 }
 
 <h1 class="h3 mb-3">Dashboard</h1> @* Título *@
 
 <div class="row g-3 mb-4"> @* Fila de tarjetas con números clave *@
-    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos (sin cancelados)</div><div class="valor">@Formato.Numero(Model.TotalPedidos)</div><div class="small" style="color: #b42318">@Model.PedidosCancelados cancelado(s)</div></div></div> @* Pedidos vigentes; los cancelados se informan en rojo aparte *@
-    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Monto total (sin cancelados)</div><div class="valor">@Formato.Moneda(Model.MontoTotal)</div><div class="small monto-cancelado">@Formato.Moneda(Model.MontoCancelado)</div></div></div> @* Monto vigente; el cancelado aparece tachado en rojo *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos (sin cancelados)</div><div class="valor">@Formato.Numero(Model.TotalPedidos)</div></div></div> @* Pedidos vigentes (los cancelados están en su cuadro, abajo) *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Monto total (sin cancelados)</div><div class="valor">@Formato.Moneda(Model.MontoTotal)</div></div></div> @* Monto vigente (los cancelados no suman) *@
     <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos abiertos</div><div class="valor">@Formato.Numero(Model.PedidosAbiertos)</div><div class="small num">@Formato.Moneda(Model.MontoAbierto)</div></div></div> @* Pedidos en curso y su monto *@
     <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Clientes</div><div class="valor">@Formato.Numero(Model.TotalClientes)</div></div></div> @* Cantidad de clientes *@
 </div> @* Fin de la fila *@
@@ -23,20 +23,19 @@
                 <table class="table align-middle mb-0"> @* Tabla: cada fila es un estado *@
                     <thead><tr><th>Estado</th><th class="text-end">Pedidos</th><th class="text-end">Monto</th><th style="width: 35%">Proporción del monto</th></tr></thead> @* Encabezados *@
                     <tbody> @* Cuerpo *@
-                        @* Una fila por estado (incluye los que tienen 0) *@
+                        @* Una fila por estado vigente (incluye los que tienen 0); Cancelado no está: tiene su propio cuadro abajo *@
                         @foreach (var r in Model.PorEstado)
                         {
                             var ancho = maxMonto == 0 ? 0 : r.Monto / maxMonto * 100; // Largo de la barra en % respecto del mayor
-                            var esCancelado = r.Estado == EstadoPedido.Cancelado; // Los cancelados no suman en el total
-                            var porcentaje = Model.MontoTotal == 0 || esCancelado ? 0 : r.Monto / Model.MontoTotal * 100; // Participación sobre el total vigente
-                            <tr class="@(esCancelado ? "fila-cancelada" : "")" title="@EstadoMapper.Nombre(r.Estado): @r.Cantidad pedido(s), @Formato.Moneda(r.Monto)@(esCancelado ? " (no suma al total)" : $" ({Formato.Porcentaje(porcentaje)} del total)")"> @* Fila con ayuda al pasar el mouse; la de cancelados en rojo suave *@
+                            var porcentaje = Model.MontoTotal == 0 ? 0 : r.Monto / Model.MontoTotal * 100; // Participación sobre el total vigente
+                            <tr title="@EstadoMapper.Nombre(r.Estado): @r.Cantidad pedido(s), @Formato.Moneda(r.Monto) (@Formato.Porcentaje(porcentaje) del total)"> @* Fila con ayuda al pasar el mouse *@
                                 <td><a asp-controller="Pedidos" asp-action="Index" asp-route-estado="@r.Estado" class="text-decoration-none"><partial name="_EstadoBadge" model="r.Estado" /></a></td> @* Estado con enlace al listado filtrado *@
                                 <td class="text-end num">@r.Cantidad</td> @* Cantidad *@
-                                <td class="text-end num text-nowrap @(esCancelado ? "monto-cancelado" : "")">@Formato.Moneda(r.Monto)</td> @* Monto (tachado en rojo si son cancelados) *@
+                                <td class="text-end num text-nowrap">@Formato.Moneda(r.Monto)</td> @* Monto *@
                                 <td> @* Barra proporcional *@
                                     <div class="d-flex align-items-center gap-2"> @* Barra + porcentaje *@
-                                        <div class="barra-fondo flex-grow-1"><div class="barra @(esCancelado ? "barra-cancelada" : "")" style="width: @ancho.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div> @* Barra azul (roja para cancelados); el ancho usa punto decimal porque es CSS *@
-                                        <span class="small num text-nowrap" style="width: 4.5em; color: @(esCancelado ? "#b42318" : "var(--gris-azulado)")">@(esCancelado ? "no suma" : Formato.Porcentaje(porcentaje))</span> @* Porcentaje del total, o "no suma" para cancelados *@
+                                        <div class="barra-fondo flex-grow-1"><div class="barra" style="width: @ancho.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div> @* Barra azul (el ancho usa punto decimal porque es CSS) *@
+                                        <span class="small num text-nowrap" style="width: 4.5em; color: var(--gris-azulado)">@Formato.Porcentaje(porcentaje)</span> @* Porcentaje del total *@
                                     </div> @* Fin de barra + porcentaje *@
                                 </td> @* Fin de la celda *@
                             </tr> @* Fin de la fila *@
@@ -66,3 +65,37 @@
         </div> @* Fin de la tarjeta *@
     </div> @* Fin de la columna derecha *@
 </div> @* Fin de la fila *@
+
+<div class="card mt-3 border-danger-subtle"> @* Cuadro separado para los pedidos cancelados *@
+    <div class="card-header d-flex justify-content-between align-items-center" style="background: #fdecec; color: #b42318"> @* Encabezado en rojo suave *@
+        <span>Pedidos cancelados</span> @* Título *@
+        <span class="small">@Model.PedidosCancelados pedido(s) · <span class="monto-cancelado">@Formato.Moneda(Model.MontoCancelado)</span></span> @* Cantidad y monto cancelado *@
+    </div> @* Fin del encabezado *@
+    @* Si no hay cancelados, aviso; si hay, tabla *@
+    @if (Model.UltimosCancelados.Count == 0)
+    {
+        <div class="card-body small" style="color: var(--gris-azulado)">No hay pedidos cancelados.</div> @* Aviso *@
+    }
+    else
+    {
+        <div class="table-responsive"> @* Tabla desplazable *@
+            <table class="table align-middle mb-0 small"> @* Tabla de cancelados *@
+                <thead><tr><th>#</th><th>Cliente</th><th>Descripción</th><th class="text-end">Monto</th><th>Cancelado el</th></tr></thead> @* Encabezados *@
+                <tbody> @* Cuerpo *@
+                    @* Una fila por pedido cancelado (los 10 más recientes) *@
+                    @foreach (var p in Model.UltimosCancelados)
+                    {
+                        <tr> @* Fila *@
+                            <td><a asp-controller="Pedidos" asp-action="Details" asp-route-id="@p.Id">@p.Id</a></td> @* Número con enlace al detalle *@
+                            <td>@p.Cliente?.Nombre</td> @* Cliente *@
+                            <td>@p.Descripcion</td> @* Descripción *@
+                            <td class="text-end num text-nowrap monto-cancelado">@Formato.Moneda(p.Monto)</td> @* Monto tachado en rojo *@
+                            <td class="text-nowrap">@Formato.Fecha(p.FechaActualizacion)</td> @* Cuándo se canceló (último cambio) *@
+                        </tr> @* Fin de la fila *@
+                    }
+                </tbody> @* Fin del cuerpo *@
+            </table> @* Fin de la tabla *@
+        </div> @* Fin del contenedor *@
+        <div class="card-footer bg-white small"><a asp-controller="Pedidos" asp-action="Index" asp-route-estado="Cancelado">Ver todos los cancelados →</a></div> @* Enlace al listado filtrado *@
+    }
+</div> @* Fin del cuadro de cancelados *@

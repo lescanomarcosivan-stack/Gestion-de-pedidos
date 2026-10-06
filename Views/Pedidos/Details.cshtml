@@ -20,7 +20,7 @@
                 <dl class="row"> @* Lista etiqueta/valor *@
                     <dt class="col-sm-4">Cliente</dt><dd class="col-sm-8"><a asp-controller="Clientes" asp-action="Details" asp-route-id="@p.ClienteId">@p.Cliente?.Nombre</a></dd> @* Cliente con enlace *@
                     <dt class="col-sm-4">Descripción</dt><dd class="col-sm-8">@p.Descripcion</dd> @* Descripción *@
-                    <dt class="col-sm-4">Monto</dt><dd class="col-sm-8 num @(p.Estado == EstadoPedido.Cancelado ? "monto-cancelado" : "")">@Formato.Moneda(p.Monto) @if (p.Estado == EstadoPedido.Cancelado) { <span class="small" style="text-decoration: none">(cancelado, no suma)</span> }</dd> @* Monto (tachado en rojo si está cancelado) *@
+                    <dt class="col-sm-4">Monto</dt><dd class="col-sm-8 num @(p.Estado == EstadoPedido.Cancelado ? "monto-cancelado" : "")">@Formato.Moneda(p.Monto)</dd> @* Monto (tachado en rojo si está cancelado) *@
                     <dt class="col-sm-4">Creado</dt><dd class="col-sm-8">@Formato.Fecha(p.FechaCreacion)</dd> @* Fecha de creación *@
                     <dt class="col-sm-4">Actualizado</dt><dd class="col-sm-8">@Formato.Fecha(p.FechaActualizacion)</dd> @* Último cambio (manual o por webhook) *@
                 </dl> @* Fin de la lista *@

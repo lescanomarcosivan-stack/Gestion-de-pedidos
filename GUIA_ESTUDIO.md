@@ -313,7 +313,7 @@ Para que sea consistente: si el cambio falla, tampoco queda un registro de algo 
 La app usa una gama de azules, y cada etiqueta lleva además el **nombre** del estado para no depender solo del color. Cancelado va en **rojo** a propósito: es un pedido anulado y tiene que saltar a la vista. Su monto aparece **tachado en rojo**.
 
 **¿Los pedidos cancelados suman en el total del dashboard?**
-No. Un pedido anulado no es plata real, así que `HomeController.Index` calcula el total y los porcentajes solo con los estados vigentes. Los cancelados se muestran aparte, en rojo, con la aclaración "no suma".
+No. Un pedido anulado no es plata real, así que `HomeController.Index` calcula el total y los porcentajes solo con los estados vigentes. Los cancelados se muestran en un **cuadro separado** más abajo (`UltimosCancelados`), en rojo y con el monto tachado.
 
 ### 7.5 Ejercicios de la versión 2
 
