@@ -39,14 +39,14 @@ public static class EstadoMapper // Clase estática: se usa como EstadoMapper.Tr
         _ => estado.ToString() // Para el resto alcanza con el nombre del enum
     }; // Fin de las opciones
 
-    // Clase CSS de la etiqueta del estado. Los colores (gama de azules) están definidos en Views/Shared/_Layout.cshtml
+    // Clase CSS de la etiqueta del estado. Los colores (azules, y rojo para Cancelado) están definidos en Views/Shared/_Layout.cshtml
     public static string ColorBadge(EstadoPedido estado) => estado switch // Devuelve una clase CSS según el estado
     { // Inicio de las opciones
         EstadoPedido.Pendiente => "estado estado-pendiente", // Azul muy claro (todavía no empezó)
         EstadoPedido.EnPreparacion => "estado estado-preparacion", // Celeste (en proceso)
         EstadoPedido.Enviado => "estado estado-enviado", // Azul medio (en camino)
         EstadoPedido.Entregado => "estado estado-entregado", // Azul marino (terminado)
-        EstadoPedido.Cancelado => "estado estado-cancelado", // Gris azulado tachado (anulado)
+        EstadoPedido.Cancelado => "estado estado-cancelado", // Rojo (anulado: no suma en los totales)
         _ => "estado" // Cualquier otro caso
     }; // Fin de las opciones
 

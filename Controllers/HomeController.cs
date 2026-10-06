@@ -42,8 +42,12 @@ public class HomeController : Controller // Hereda de Controller
                 .Take(8) // Los últimos 8
                 .ToListAsync() // Ejecuta la consulta
         }; // Fin de los datos
-        modelo.TotalPedidos = modelo.PorEstado.Sum(r => r.Cantidad); // Total de pedidos (sumado en memoria: ya tenemos los datos)
-        modelo.MontoTotal = modelo.PorEstado.Sum(r => r.Monto); // Monto total
+        var vigentes = modelo.PorEstado.Where(r => r.Estado != EstadoPedido.Cancelado).ToList(); // Todos los estados menos Cancelado
+        var cancelados = modelo.PorEstado.First(r => r.Estado == EstadoPedido.Cancelado); // La fila de los cancelados
+        modelo.TotalPedidos = vigentes.Sum(r => r.Cantidad); // Total de pedidos SIN los cancelados (sumado en memoria: ya tenemos los datos)
+        modelo.MontoTotal = vigentes.Sum(r => r.Monto); // Monto total SIN los cancelados (un pedido anulado no es plata real)
+        modelo.PedidosCancelados = cancelados.Cantidad; // Cancelados: se informan aparte
+        modelo.MontoCancelado = cancelados.Monto; // Monto cancelado: se informa aparte
         var abiertos = modelo.PorEstado.Where(r => !EstadoMapper.EstaCerrado(r.Estado)).ToList(); // Estados que siguen en curso
         modelo.PedidosAbiertos = abiertos.Sum(r => r.Cantidad); // Cantidad abierta
         modelo.MontoAbierto = abiertos.Sum(r => r.Monto); // Monto abierto

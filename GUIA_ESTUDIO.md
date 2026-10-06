@@ -298,7 +298,7 @@ El rate limiter corta en 60 por minuto por IP (webhook) y 10 por minuto por IP (
 Railway bloquea el puerto SMTP en los planes que no son Pro. Brevo tiene una API HTTP (puerto 443) y un plan gratuito. El envío está detrás de la interfaz `IEnviadorEmail`, así que cambiar de proveedor no toca los controladores.
 
 **¿Por qué los usuarios nuevos quedan inactivos?**
-Porque cualquiera puede crear una cuenta o entrar con Google. Si quedaran activos, cualquier persona de internet vería los datos de clientes. Con aprobación, el administrador decide quién entra y con qué rol.
+Porque cualquiera puede crear una cuenta o entrar con Google. Si quedaran activos, cualquier persona de internet vería los datos de clientes. Con aprobación, el administrador decide quién entra y con qué rol. Si algún día se quisiera que se activen solas (siempre con rol Consulta), alcanza con la variable `Registro__AprobacionAutomatica=true`: es configuración, no código.
 
 **¿Cómo se registran los errores?**
 `ManejadorErrores` implementa `IExceptionHandler`: ASP.NET Core lo llama ante cualquier error no controlado. Guarda tipo, mensaje, pantalla, usuario e IP usando un `DbContext` **nuevo** (el del pedido puede haber quedado en mal estado) y deja que se muestre la página de error.
@@ -309,8 +309,11 @@ Para que sea consistente: si el cambio falla, tampoco queda un registro de algo 
 **¿Cómo hiciste la paginación sin perder los filtros?**
 `_Paginacion.cshtml` copia todos los parámetros de la URL actual y solo reemplaza `pagina`. El controlador hace `COUNT` para el total y `Skip/Take` para la página. Ordena por fecha y desempata por Id para que no se repitan filas entre páginas.
 
-**¿Por qué los colores de estado son todos azules? ¿No se confunden?**
-Fue un pedido de diseño (gama de azules). Para no depender solo del color, cada etiqueta tiene el **nombre** del estado, y Cancelado además está tachado con borde punteado. Los errores siguen en rojo a propósito, para que se distingan.
+**¿Por qué los estados son azules y Cancelado es rojo?**
+La app usa una gama de azules, y cada etiqueta lleva además el **nombre** del estado para no depender solo del color. Cancelado va en **rojo** a propósito: es un pedido anulado y tiene que saltar a la vista. Su monto aparece **tachado en rojo**.
+
+**¿Los pedidos cancelados suman en el total del dashboard?**
+No. Un pedido anulado no es plata real, así que `HomeController.Index` calcula el total y los porcentajes solo con los estados vigentes. Los cancelados se muestran aparte, en rojo, con la aclaración "no suma".
 
 ### 7.5 Ejercicios de la versión 2
 

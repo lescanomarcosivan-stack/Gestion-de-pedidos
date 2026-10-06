@@ -46,7 +46,10 @@
         .estado-preparacion { background: var(--azul-200); color: #0b4a7a; border-color: var(--azul-300); } /* En preparación: celeste */
         .estado-enviado { background: var(--azul-600); color: #fff; } /* Enviado: azul medio */
         .estado-entregado { background: var(--azul-900); color: #fff; } /* Entregado: azul marino */
-        .estado-cancelado { background: #f1f4f8; color: var(--gris-azulado); border: 1px dashed #b6c2d2; text-decoration: line-through; } /* Cancelado: gris azulado tachado */
+        .estado-cancelado { background: #fdecec; color: #b42318; border: 1px solid #f5b5b0; } /* Cancelado: en rojo para que se distinga de los pedidos vigentes */
+        .monto-cancelado { color: #b42318 !important; text-decoration: line-through; } /* Monto de un pedido cancelado: rojo y tachado (no suma) */
+        .fila-cancelada td { background: #fff6f5 !important; } /* Fila de un pedido cancelado: fondo rojo muy suave */
+        .barra.barra-cancelada { background: #e5484d; } /* Barra del dashboard para los cancelados */
         .kpi { background: #fff; border: 1px solid #d6e3f3; border-left: 4px solid var(--azul-700); border-radius: .5rem; padding: 1rem; } /* Tarjetas de números del dashboard */
         .kpi .valor { font-size: 1.6rem; font-weight: 700; color: var(--azul-900); font-variant-numeric: tabular-nums; } /* Número grande */
         .barra-fondo { background: var(--azul-100); border-radius: 4px; height: 12px; } /* Fondo de las barras del dashboard */

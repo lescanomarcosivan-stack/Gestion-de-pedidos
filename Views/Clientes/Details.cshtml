@@ -46,10 +46,10 @@ else
                     @* Una fila por pedido *@
                     @foreach (var p in Model.Pedidos)
                     {
-                        <tr> @* Fila *@
+                        <tr class="@(p.Estado == EstadoPedido.Cancelado ? "fila-cancelada" : "")"> @* Fila (rojo suave si está cancelado) *@
                             <td><a asp-controller="Pedidos" asp-action="Details" asp-route-id="@p.Id">@p.Id</a></td> @* Número con enlace al detalle *@
                             <td>@p.Descripcion</td> @* Descripción *@
-                            <td class="text-end num text-nowrap">@Formato.Moneda(p.Monto)</td> @* Monto en formato argentino *@
+                            <td class="text-end num text-nowrap @(p.Estado == EstadoPedido.Cancelado ? "monto-cancelado" : "")">@Formato.Moneda(p.Monto)</td> @* Monto (tachado en rojo si está cancelado) *@
                             <td><partial name="_EstadoBadge" model="p.Estado" /></td> @* Etiqueta de color del estado (vista parcial) *@
                             <td>@Formato.Fecha(p.FechaCreacion)</td> @* Fecha de creación *@
                         </tr> @* Fin de la fila *@

@@ -23,7 +23,7 @@ Se crean solos la primera vez. Contraseña: la de la variable `Demo__Password` (
 | `operador@demo.com` | Operador | Crear y editar clientes y pedidos, cambiar estados, probar el webhook |
 | `consulta@demo.com` | Consulta | Solo ver |
 
-Las cuentas nuevas (con **Crear cuenta** o **Ingresar con Google**) quedan **inactivas con rol Consulta** hasta que un administrador las activa en *Usuarios*.
+Las cuentas nuevas (con **Crear cuenta** o **Ingresar con Google**) quedan **inactivas con rol Consulta** hasta que un administrador las activa en *Usuarios*. Con la variable `Registro__AprobacionAutomatica=true` se activarían solas (siempre con rol Consulta).
 
 ## Funcionalidades
 
@@ -31,7 +31,8 @@ Las cuentas nuevas (con **Crear cuenta** o **Ingresar con Google**) quedan **ina
 - Clientes: alta, edición, ficha con pedidos e historial de cambios, búsqueda y filtro por ciudad.
 - Pedidos: alta, listado **paginado** (10 por página) con búsqueda, filtro por estado y rango de fechas, cambio de estado.
 - **Historial de estados** por pedido: quién, cuándo, de qué estado a cuál y por qué vía (Alta / Manual / Webhook).
-- **Dashboard**: cantidad y monto por estado, totales, pedidos abiertos y últimos cambios.
+- **Dashboard**: cantidad y monto por estado, totales **sin cancelados** (los cancelados se muestran aparte en rojo), pedidos abiertos y últimos cambios.
+- Los pedidos **cancelados** se muestran en rojo y con el monto tachado en todas las pantallas.
 - Montos en formato argentino (`$ 1.234,56`) y fechas en hora de Argentina.
 
 **Usabilidad**
@@ -117,6 +118,7 @@ Cada evento queda en *Webhooks* con una marca **✓ Procesado** o **✗ Rechazad
 | `App__UrlPublica` | Recomendada | URL pública, para armar los enlaces de los emails |
 | `Autenticacion__Google__ClientId` / `__ClientSecret` | No | Activa "Ingresar con Google" |
 | `Email__BrevoApiKey` / `Email__Remitente` | No | Envío de emails por la API de Brevo. Sin esto, el enlace de recuperación queda en los logs del servidor |
+| `Registro__AprobacionAutomatica` | No | `false` por defecto: las cuentas nuevas requieren aprobación del administrador. `true`: se activan solas con rol Consulta |
 | `Tracking__BaseUrl` | No | API de seguimiento real (vacío = mock incluido) |
 
 > Los emails se envían por la API HTTP de Brevo porque Railway bloquea SMTP en los planes que no son Pro.

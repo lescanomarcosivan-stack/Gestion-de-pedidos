@@ -3,14 +3,14 @@
 @model DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard"; // Título de la pestaña
-    var maxMonto = Model.PorEstado.Count == 0 ? 0 : Model.PorEstado.Max(r => r.Monto); // Monto más grande (la barra más larga ocupa el 100%)
+    var maxMonto = Model.PorEstado.Count == 0 ? 0 : Model.PorEstado.Max(r => r.Monto); // Monto más grande (la barra más larga ocupa el 100%); incluye cancelados solo para dibujar su barra
 }
 
 <h1 class="h3 mb-3">Dashboard</h1> @* Título *@
 
 <div class="row g-3 mb-4"> @* Fila de tarjetas con números clave *@
-    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos totales</div><div class="valor">@Formato.Numero(Model.TotalPedidos)</div></div></div> @* Cantidad total de pedidos *@
-    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Monto total</div><div class="valor">@Formato.Moneda(Model.MontoTotal)</div></div></div> @* Suma de todos los montos *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos (sin cancelados)</div><div class="valor">@Formato.Numero(Model.TotalPedidos)</div><div class="small" style="color: #b42318">@Model.PedidosCancelados cancelado(s)</div></div></div> @* Pedidos vigentes; los cancelados se informan en rojo aparte *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Monto total (sin cancelados)</div><div class="valor">@Formato.Moneda(Model.MontoTotal)</div><div class="small monto-cancelado">@Formato.Moneda(Model.MontoCancelado)</div></div></div> @* Monto vigente; el cancelado aparece tachado en rojo *@
     <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Pedidos abiertos</div><div class="valor">@Formato.Numero(Model.PedidosAbiertos)</div><div class="small num">@Formato.Moneda(Model.MontoAbierto)</div></div></div> @* Pedidos en curso y su monto *@
     <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Clientes</div><div class="valor">@Formato.Numero(Model.TotalClientes)</div></div></div> @* Cantidad de clientes *@
 </div> @* Fin de la fila *@
@@ -27,22 +27,23 @@
                         @foreach (var r in Model.PorEstado)
                         {
                             var ancho = maxMonto == 0 ? 0 : r.Monto / maxMonto * 100; // Largo de la barra en % respecto del mayor
-                            var porcentaje = Model.MontoTotal == 0 ? 0 : r.Monto / Model.MontoTotal * 100; // Participación sobre el total
-                            <tr title="@EstadoMapper.Nombre(r.Estado): @r.Cantidad pedido(s), @Formato.Moneda(r.Monto) (@Formato.Porcentaje(porcentaje) del total)"> @* Fila con ayuda al pasar el mouse *@
+                            var esCancelado = r.Estado == EstadoPedido.Cancelado; // Los cancelados no suman en el total
+                            var porcentaje = Model.MontoTotal == 0 || esCancelado ? 0 : r.Monto / Model.MontoTotal * 100; // Participación sobre el total vigente
+                            <tr class="@(esCancelado ? "fila-cancelada" : "")" title="@EstadoMapper.Nombre(r.Estado): @r.Cantidad pedido(s), @Formato.Moneda(r.Monto)@(esCancelado ? " (no suma al total)" : $" ({Formato.Porcentaje(porcentaje)} del total)")"> @* Fila con ayuda al pasar el mouse; la de cancelados en rojo suave *@
                                 <td><a asp-controller="Pedidos" asp-action="Index" asp-route-estado="@r.Estado" class="text-decoration-none"><partial name="_EstadoBadge" model="r.Estado" /></a></td> @* Estado con enlace al listado filtrado *@
                                 <td class="text-end num">@r.Cantidad</td> @* Cantidad *@
-                                <td class="text-end num text-nowrap">@Formato.Moneda(r.Monto)</td> @* Monto *@
+                                <td class="text-end num text-nowrap @(esCancelado ? "monto-cancelado" : "")">@Formato.Moneda(r.Monto)</td> @* Monto (tachado en rojo si son cancelados) *@
                                 <td> @* Barra proporcional *@
                                     <div class="d-flex align-items-center gap-2"> @* Barra + porcentaje *@
-                                        <div class="barra-fondo flex-grow-1"><div class="barra" style="width: @ancho.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div> @* Barra azul (el ancho usa punto decimal porque es CSS) *@
-                                        <span class="small num text-nowrap" style="width: 4.5em; color: var(--gris-azulado)">@Formato.Porcentaje(porcentaje)</span> @* Porcentaje del total *@
+                                        <div class="barra-fondo flex-grow-1"><div class="barra @(esCancelado ? "barra-cancelada" : "")" style="width: @ancho.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)%"></div></div> @* Barra azul (roja para cancelados); el ancho usa punto decimal porque es CSS *@
+                                        <span class="small num text-nowrap" style="width: 4.5em; color: @(esCancelado ? "#b42318" : "var(--gris-azulado)")">@(esCancelado ? "no suma" : Formato.Porcentaje(porcentaje))</span> @* Porcentaje del total, o "no suma" para cancelados *@
                                     </div> @* Fin de barra + porcentaje *@
                                 </td> @* Fin de la celda *@
                             </tr> @* Fin de la fila *@
                         }
                     </tbody> @* Fin del cuerpo *@
                     <tfoot> @* Pie de tabla con totales *@
-                        <tr class="fw-semibold"><td>Total</td><td class="text-end num">@Model.TotalPedidos</td><td class="text-end num text-nowrap">@Formato.Moneda(Model.MontoTotal)</td><td></td></tr> @* Fila de totales *@
+                        <tr class="fw-semibold"><td>Total (sin cancelados)</td><td class="text-end num">@Model.TotalPedidos</td><td class="text-end num text-nowrap">@Formato.Moneda(Model.MontoTotal)</td><td></td></tr> @* Fila de totales: los cancelados no suman *@
                     </tfoot> @* Fin del pie *@
                 </table> @* Fin de la tabla *@
             </div> @* Fin del contenedor *@

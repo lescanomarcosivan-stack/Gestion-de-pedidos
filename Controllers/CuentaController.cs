@@ -115,7 +115,11 @@ public class CuentaController : Controller // Atiende las URLs /Cuenta/...
 
     // GET /Cuenta/Registro → formulario para crear una cuenta
     [AllowAnonymous] // Público
-    public IActionResult Registro() => View(new RegistroViewModel()); // Formulario vacío
+    public IActionResult Registro() // Muestra el formulario vacío
+    { // Inicio del método
+        ViewBag.AprobacionAutomatica = AprobacionAutomatica; // Para que la pantalla explique si la cuenta se activa sola
+        return View(new RegistroViewModel()); // Formulario vacío
+    } // Fin del método
 
     // POST /Cuenta/Registro → crea la cuenta (queda pendiente de aprobación)
     [HttpPost, AllowAnonymous, ValidateAntiForgeryToken] // Formulario público con token
@@ -125,6 +129,7 @@ public class CuentaController : Controller // Atiende las URLs /Cuenta/...
         var email = modelo.Email.Trim().ToLowerInvariant(); // Normalizamos el email
         if (await _db.Usuarios.AnyAsync(u => u.Email == email)) // Si ya existe...
             ModelState.AddModelError(nameof(modelo.Email), "Ya existe una cuenta con ese email"); // ...error en el campo
+        ViewBag.AprobacionAutomatica = AprobacionAutomatica; // Por si hay que volver a mostrar el formulario
         if (!ModelState.IsValid) return View(modelo); // Si hay errores, volvemos
 
         var usuario = new Usuario // Nueva cuenta
@@ -132,14 +137,20 @@ public class CuentaController : Controller // Atiende las URLs /Cuenta/...
             Email = email, // Email normalizado
             Nombre = modelo.Nombre.Trim(), // Nombre
             Rol = Roles.Consulta, // Por seguridad, el menor permiso
-            Activo = false // Inactiva hasta que un administrador la apruebe
+            Activo = AprobacionAutomatica // Activa al instante si la aprobación es automática; si no, espera a un administrador
         }; // Fin de los datos
         usuario.PasswordHash = _hasher.HashPassword(usuario, modelo.Password); // Guardamos SOLO el hash de la contraseña
         _db.Usuarios.Add(usuario); // Marcamos para insertar
         await _db.SaveChangesAsync(); // INSERT (ahora tiene Id)
-        await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Acceso, "Registro de cuenta", "Pendiente de aprobación", "Usuario", usuario.Id, email); // Registramos
+        await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Acceso, "Registro de cuenta", usuario.Activo ? "Aprobada automáticamente (rol Consulta)" : "Pendiente de aprobación", "Usuario", usuario.Id, email); // Registramos
 
-        TempData["Mensaje"] = "Cuenta creada. Un administrador tiene que aprobarla antes de que puedas entrar."; // Aviso
+        if (usuario.Activo) // Si quedó activa...
+        { // Inicio del bloque
+            await IniciarSesionAsync(usuario, "registro"); // ...iniciamos sesión directamente (no hace falta volver a escribir la contraseña)
+            TempData["Mensaje"] = $"¡Bienvenido, {usuario.Nombre}! Tu cuenta tiene rol Consulta (solo lectura). Un administrador puede darte más permisos."; // Aviso
+            return RedirectToAction("Index", "Home"); // Al dashboard
+        } // Fin del bloque
+        TempData["Mensaje"] = "Cuenta creada. Un administrador tiene que aprobarla antes de que puedas entrar."; // Aviso (modo con aprobación manual)
         return RedirectToAction(nameof(Login)); // Volvemos al login
     } // Fin del método
 
@@ -175,10 +186,10 @@ public class CuentaController : Controller // Atiende las URLs /Cuenta/...
         var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.GoogleId == googleId || u.Email == email); // Buscamos por Id de Google o por email
         if (usuario is null) // Primera vez que entra
         { // Inicio del bloque
-            usuario = new Usuario { Email = email, Nombre = nombre!, GoogleId = googleId, Rol = Roles.Consulta, Activo = false }; // Cuenta nueva sin contraseña, pendiente de aprobación
+            usuario = new Usuario { Email = email, Nombre = nombre!, GoogleId = googleId, Rol = Roles.Consulta, Activo = AprobacionAutomatica }; // Cuenta nueva sin contraseña, rol Consulta (activa o pendiente según la configuración)
             _db.Usuarios.Add(usuario); // Marcamos para insertar
             await _db.SaveChangesAsync(); // INSERT
-            await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Acceso, "Registro con Google", "Pendiente de aprobación", "Usuario", usuario.Id, email); // Registramos
+            await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Acceso, "Registro con Google", usuario.Activo ? "Aprobada automáticamente (rol Consulta)" : "Pendiente de aprobación", "Usuario", usuario.Id, email); // Registramos
         } // Fin del bloque
         else if (usuario.GoogleId is null) // Ya tenía cuenta con contraseña y es la primera vez que usa Google
         { // Inicio del bloque
@@ -293,6 +304,10 @@ public class CuentaController : Controller // Atiende las URLs /Cuenta/...
 
     private IActionResult RedirigirLocal(string? returnUrl) // Evita redirecciones a sitios externos (ataque "open redirect")
         => !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl) : RedirectToAction("Index", "Home"); // Solo URLs de nuestro sitio
+
+    // false (por defecto) = las cuentas nuevas esperan que un administrador las apruebe (más seguro).
+    // true = se activan solas con rol Consulta. Se cambia con la variable Registro__AprobacionAutomatica=true
+    private bool AprobacionAutomatica => _config.GetValue("Registro:AprobacionAutomatica", false); // Si la variable no existe, vale false
 
     private async Task<bool> GoogleHabilitadoAsync() => await _esquemas.GetSchemeAsync("Google") is not null; // true si Google fue registrado en Program.cs
 
