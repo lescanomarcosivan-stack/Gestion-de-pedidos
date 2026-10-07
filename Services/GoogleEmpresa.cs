@@ -131,7 +131,7 @@ public class GoogleEmpresa : IGoogleEmpresa // Cumple el contrato
     { // Inicio del método
         var conexion = await ConexionObligatoriaAsync(); // Falla si no hay conexión
         await CarpetaAsync(conexion); // Drive: verifica (o crea) la carpeta de la app
-        using var respuesta = await EnviarAsync(new HttpRequestMessage(HttpMethod.Get, $"{UrlsGoogle.Calendar}calendars/{CalendarioId}?fields=summary")); // Calendar: lee el nombre del calendario
+        using var respuesta = await EnviarAsync(new HttpRequestMessage(HttpMethod.Get, $"{UrlsGoogle.Calendar}calendars/{CalendarioId}/events?maxResults=1&fields=summary")); // Calendar: lista eventos (lo permite "calendar.events"); la respuesta trae el nombre del calendario
         if (!respuesta.IsSuccessStatusCode) throw new ErrorGoogle("Calendar: " + await LeerErrorAsync(respuesta)); // Si falla, explicamos
         var nombreCalendario = (await LeerJsonAsync(respuesta))["summary"]?.GetValue<string>(); // Nombre del calendario
         return $"Drive: carpeta \"{NombreCarpeta}\" lista · Calendar: \"{nombreCalendario}\" accesible"; // Resumen
