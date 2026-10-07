@@ -1,0 +1,77 @@
+@* Ficha del producto: datos, formulario de ingreso/ajuste e historial de movimientos de stock *@
+@* La vista recibe el producto, sus movimientos y el formulario *@
+@model ProductoDetalleViewModel
+@{
+    var p = Model.Producto; // Atajo
+    ViewData["Title"] = p.Nombre; // Título de la pestaña
+    var puedeEditar = User.IsInRole(Roles.Administrador) || User.IsInRole(Roles.Operador); // Solo admin y operador mueven stock
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3"> @* Fila de título *@
+    <h1 class="h3 mb-0">@p.Nombre <code class="fs-6">@p.Codigo</code></h1> @* Nombre y código *@
+    <div> @* Botones *@
+        @* Editar solo para quien puede *@
+        @if (puedeEditar)
+        {
+            <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@p.Id">Editar</a> @* Editar *@
+        }
+        <a class="btn btn-link" asp-action="Index">← Volver</a> @* Volver *@
+    </div> @* Fin de los botones *@
+</div> @* Fin de la fila *@
+
+<div class="row g-3 mb-3"> @* Tarjetas *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Stock</div><div class="valor @(p.StockBajo ? "text-danger" : "")">@Formato.Numero(p.Stock)</div>@if (p.StockBajo) { <div class="small text-danger">Stock bajo (mínimo @p.StockMinimo)</div> }</div></div> @* Stock (rojo si está bajo) *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Precio unitario</div><div class="valor">@Formato.Moneda(p.Precio)</div></div></div> @* Precio *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Stock valorizado</div><div class="valor">@Formato.Moneda(p.Precio * p.Stock)</div></div></div> @* Precio × stock *@
+    <div class="col-6 col-lg-3"><div class="kpi"><div class="small" style="color: var(--gris-azulado)">Estado</div><div class="valor fs-5">@(p.Activo ? "Activo" : "Inactivo")</div></div></div> @* Activo/inactivo *@
+</div> @* Fin de las tarjetas *@
+
+<div class="row g-3"> @* Dos columnas *@
+    @* Formulario de movimiento solo para quien puede editar *@
+    @if (puedeEditar)
+    {
+        <div class="col-lg-4"> @* Columna izquierda *@
+            <div class="card"> @* Tarjeta *@
+                <div class="card-header">Mover stock</div> @* Título *@
+                <div class="card-body"> @* Contenido *@
+                    <form asp-action="Mover" asp-route-id="@p.Id" method="post"> @* POST /Productos/Mover/{id} *@
+                        <div class="mb-3"> @* Tipo *@
+                            <label class="form-label">Tipo</label> @* Etiqueta *@
+                            <select asp-for="Movimiento.Tipo" class="form-select"> @* Combo *@
+                                <option value="Ingreso">Ingreso (entra mercadería)</option> @* Suma *@
+                                <option value="Ajuste">Ajuste (corrección, rotura, pérdida)</option> @* Suma o resta *@
+                            </select> @* Fin del combo *@
+                        </div> @* Fin del tipo *@
+                        <div class="mb-3"><label class="form-label">Cantidad</label><input asp-for="Movimiento.Cantidad" type="number" class="form-control" required /><div class="form-text">En ajustes podés usar números negativos (ej. -2).</div></div> @* Cantidad *@
+                        <div class="mb-3"><label class="form-label">Motivo</label><input asp-for="Movimiento.Motivo" class="form-control" placeholder="Ej. Compra a proveedor, rotura, inventario" /><div class="form-text">Obligatorio en ajustes.</div></div> @* Motivo *@
+                        <button type="submit" class="btn btn-primary w-100">Registrar movimiento</button> @* Envía *@
+                    </form> @* Fin del formulario *@
+                </div> @* Fin del contenido *@
+            </div> @* Fin de la tarjeta *@
+        </div> @* Fin de la columna *@
+    }
+    <div class="@(puedeEditar ? "col-lg-8" : "col-12")"> @* Columna derecha *@
+        <div class="card"> @* Tarjeta *@
+            <div class="card-header">Movimientos de stock (últimos 50)</div> @* Título *@
+            <div class="table-responsive"> @* Tabla desplazable *@
+                <table class="table align-middle mb-0 small"> @* Tabla *@
+                    <thead><tr><th>Fecha</th><th>Tipo</th><th class="text-end">Cantidad</th><th class="text-end">Queda</th><th>Referencia</th><th>Usuario</th></tr></thead> @* Encabezados *@
+                    <tbody> @* Cuerpo *@
+                        @* Una fila por movimiento *@
+                        @foreach (var m in Model.Movimientos)
+                        {
+                            <tr> @* Fila *@
+                                <td class="text-nowrap">@Formato.Fecha(m.Fecha)</td> @* Cuándo *@
+                                <td>@(m.Tipo == TipoMovimiento.Devolucion ? "Devolución" : m.Tipo.ToString())</td> @* Tipo *@
+                                <td class="text-end num @(m.Cantidad < 0 ? "text-danger" : "")">@(m.Cantidad > 0 ? "+" : "")@m.Cantidad</td> @* Cantidad (rojo si sale) *@
+                                <td class="text-end num">@m.StockResultante</td> @* Stock resultante *@
+                                <td>@if (m.PedidoId is int pid) { <a asp-controller="Pedidos" asp-action="Details" asp-route-id="@pid">Pedido #@pid</a> } @m.Motivo</td> @* Pedido y/o motivo *@
+                                <td>@m.Usuario</td> @* Quién *@
+                            </tr> @* Fin de la fila *@
+                        }
+                    </tbody> @* Fin del cuerpo *@
+                </table> @* Fin de la tabla *@
+            </div> @* Fin del contenedor *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de las columnas *@

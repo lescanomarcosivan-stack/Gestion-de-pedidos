@@ -1,0 +1,47 @@
+@* Formulario compartido para crear y editar productos (si Id es 0 es alta) *@
+@* La vista recibe un Producto *@
+@model Producto
+@{
+    var esNuevo = Model.Id == 0; // true = alta, false = edición
+    ViewData["Title"] = esNuevo ? "Nuevo producto" : "Editar producto"; // Título según el caso
+    string? idRuta = esNuevo ? null : Model.Id.ToString(); // Id para la URL (null en el alta)
+}
+
+<h1 class="h3 mb-3">@ViewData["Title"]</h1> @* Título *@
+
+<div class="card"> @* Tarjeta *@
+    <div class="card-body"> @* Contenido *@
+        <form asp-action="@(esNuevo ? "Create" : "Edit")" asp-route-id="@idRuta" method="post"> @* POST a Create o Edit/{id} (con token anti-falsificación) *@
+            <input type="hidden" asp-for="Version" /> @* Versión que vio el usuario: si otro lo cambia mientras tanto, el guardado avisa en vez de pisarlo *@
+            <div class="row"> @* Fila *@
+                <div class="col-md-3 mb-3"><label asp-for="Codigo" class="form-label"></label><input asp-for="Codigo" class="form-control text-uppercase" /><span asp-validation-for="Codigo" class="text-danger small"></span></div> @* Código *@
+                <div class="col-md-9 mb-3"><label asp-for="Nombre" class="form-label"></label><input asp-for="Nombre" class="form-control" /><span asp-validation-for="Nombre" class="text-danger small"></span></div> @* Nombre *@
+            </div> @* Fin de la fila *@
+            <div class="row"> @* Fila *@
+                <div class="col-md-4 mb-3"> @* Precio *@
+                    <label asp-for="Precio" class="form-label"></label> @* Etiqueta *@
+                    <div class="input-group"><span class="input-group-text">$</span><input asp-for="Precio" type="number" step="0.01" min="0.01" class="form-control" /></div> @* Precio con 2 decimales *@
+                    <span asp-validation-for="Precio" class="text-danger small"></span> @* Error *@
+                </div> @* Fin del precio *@
+                <div class="col-md-4 mb-3"> @* Stock *@
+                    <label asp-for="Stock" class="form-label">@(esNuevo ? "Stock inicial" : "Stock actual")</label> @* Etiqueta *@
+                    @* En el alta se escribe; en la edición solo se muestra (se cambia con ingresos y ajustes) *@
+                    @if (esNuevo)
+                    {
+                        <input asp-for="Stock" type="number" min="0" class="form-control" /> @* Stock inicial *@
+                    }
+                    else
+                    {
+                        <input value="@Model.Stock" class="form-control" disabled /> @* Solo lectura *@
+                        <div class="form-text">Para cambiarlo usá <strong>Ingreso</strong> o <strong>Ajuste</strong> en la ficha del producto.</div> @* Aclaración *@
+                    }
+                    <span asp-validation-for="Stock" class="text-danger small"></span> @* Error *@
+                </div> @* Fin del stock *@
+                <div class="col-md-4 mb-3"><label asp-for="StockMinimo" class="form-label"></label><input asp-for="StockMinimo" type="number" min="0" class="form-control" /><span asp-validation-for="StockMinimo" class="text-danger small"></span><div class="form-text">Al llegar a este número se avisa "stock bajo".</div></div> @* Stock mínimo *@
+            </div> @* Fin de la fila *@
+            <div class="form-check mb-3"><input asp-for="Activo" class="form-check-input" /><label asp-for="Activo" class="form-check-label">Activo (disponible para nuevos pedidos)</label></div> @* Activo *@
+            <button type="submit" class="btn btn-primary">Guardar</button> @* Envía *@
+            <a class="btn btn-link" asp-action="@(esNuevo ? "Index" : "Details")" asp-route-id="@idRuta">Cancelar</a> @* Vuelve sin guardar *@
+        </form> @* Fin del formulario *@
+    </div> @* Fin del contenido *@
+</div> @* Fin de la tarjeta *@
