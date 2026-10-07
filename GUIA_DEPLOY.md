@@ -157,3 +157,67 @@ Los emails solo salen de verdad si configuraste Brevo (Parte 6). Si no, igual qu
 - [ ] **Productos → ⬇ Excel / ⬇ PDF**: reporte de stock.
 - [ ] Editá un cliente y marcá **Recibe notificaciones por email**. Los clientes de ejemplo vienen sin marcar, a propósito.
 - [ ] **Registro → tipo Email**: se ven los avisos generados.
+
+---
+
+# Versión 4 (etapa 2): Google Drive y Google Calendar
+
+**No borra datos.** Agrega la fecha de entrega a los pedidos, los archivos adjuntos y la conexión con Google.
+
+**No hace falta ninguna variable nueva en Railway**: usa las mismas credenciales de Google del login (`Autenticacion__Google__ClientId` y `__ClientSecret`).
+
+Cómo funciona: un administrador conecta **una vez** la cuenta de Google de la empresa. Desde ahí, la app guarda los adjuntos en el Drive de esa cuenta y agenda las entregas en su Calendar. Los demás usuarios no necesitan cuenta de Google.
+
+> Usá una cuenta de Google **de la empresa** (por ejemplo, un Gmail creado para esto), no tu cuenta personal: los archivos y eventos quedan ahí.
+
+## Parte A — Preparar Google Cloud (10 minutos)
+
+Entrá a **console.cloud.google.com** y verificá que arriba esté seleccionado el proyecto **Gestion Pedidos** (el mismo del login con Google).
+
+**1. Habilitar las dos APIs**
+1. En el buscador de arriba escribí **Google Drive API** → entrá → botón **Habilitar**.
+2. Volvé al buscador, escribí **Google Calendar API** → entrá → **Habilitar**.
+
+**2. Agregar la dirección de retorno**
+1. Buscador → **Google Auth Platform** → menú izquierdo **Clientes** → tocá el cliente **Railway**.
+2. En **URIs de redireccionamiento autorizados** → **Agregar URI** → pegá exactamente:
+   `https://gestion-de-pedidos-production.up.railway.app/Integraciones/Callback`
+3. Dejá la que ya estaba (`/signin-google`). Tocá **Guardar**.
+
+**3. Agregar los permisos a la pantalla de consentimiento**
+1. Menú izquierdo **Acceso a los datos** → **Agregar o quitar permisos**.
+2. En el filtro escribí `drive.file` y marcá **.../auth/drive.file**.
+3. Escribí `calendar.events` y marcá **.../auth/calendar.events**.
+4. **Actualizar** → abajo **Guardar**.
+
+**4. Verificar que la app esté publicada**
+Menú izquierdo **Público** → tiene que decir **En producción**. Si dice **Prueba**, la conexión se corta sola a los 7 días.
+
+## Parte B — Subir el código
+1. Descomprimí el zip nuevo.
+2. En GitHub: **Add file → Upload files** → arrastrá todo el contenido → **Commit changes**.
+3. **Comprobá** que en GitHub existan la carpeta `Views/Integraciones` (con `Index.cshtml`) y el archivo `Controllers/IntegracionesController.cs`. Si falta la carpeta, subila de nuevo entrando a `Views`.
+4. En Railway (**genuine-friendship**), esperá a que el deploy diga **Active**.
+
+## Parte C — Conectar la cuenta (una sola vez)
+1. Entrá a la app como **admin** → menú **Google**.
+2. Abajo a la derecha se ve la **Dirección de retorno**: tiene que ser idéntica a la que cargaste en el paso A.2.
+3. Tocá **Conectar cuenta de Google** → elegí la cuenta de la empresa.
+4. Google va a mostrar **"Google no verificó esta app"**. Es normal (la verificación es un trámite para apps públicas). Tocá **Configuración avanzada** → **Ir a Gestión de Pedidos (no seguro)**.
+5. **Marcá las dos casillas** (Drive y Calendar) → **Continuar**.
+6. Volvés a la app: "Cuenta ... conectada". Tocá **Probar conexión**: tiene que decir ✓ Drive ... · Calendar ...
+
+Si sale `redirect_uri_mismatch`: la dirección del paso A.2 no es idéntica (https, sin barra al final).
+Si sale un error que menciona que la API "has not been used" o está "disabled": falta el paso A.1.
+
+## Probar (checklist)
+- [ ] **Pedidos → + Nuevo pedido**: elegí una **Fecha de entrega** → guardá. En el detalle, a los segundos aparece "📅 en Google Calendar". Abrí el Calendar de la empresa: está el evento.
+- [ ] En el detalle: **Cambiar fecha** → el evento se mueve de día.
+- [ ] Cambiá el estado a **Entregado** → el evento se pone verde con ✓.
+- [ ] Cancelá un pedido con fecha → el evento desaparece de Calendar.
+- [ ] **Archivos** → elegí un PDF → **Subir a Drive**. En el Drive de la empresa aparece la carpeta **Gestión de Pedidos** con el archivo.
+- [ ] Tocá el nombre del archivo → se descarga.
+- [ ] **Quitar** (dos clics) → el archivo va a la papelera de Drive.
+- [ ] Entrá con `consulta@demo.com`: puede descargar, pero no subir ni quitar.
+- [ ] **Registro → tipo Google**: aparecen la conexión, los archivos y los eventos.
+- [ ] Menú **Google → Sincronizar entregas**: agenda en Calendar todos los pedidos que ya tenían fecha.

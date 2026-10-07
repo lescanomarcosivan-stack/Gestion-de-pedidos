@@ -1,0 +1,76 @@
+@* Conexión con la cuenta de Google de la empresa (Drive para archivos y Calendar para fechas de entrega). Solo administradores *@
+@* La vista recibe la conexión guardada, o null si no hay *@
+@model IntegracionGoogle?
+@{
+    ViewData["Title"] = "Google Drive y Calendar"; // Título de la pestaña
+    var configurado = (bool)ViewBag.Configurado; // ¿Hay credenciales de Google Cloud en Railway?
+}
+
+<h1 class="h3 mb-3">Google Drive y Calendar</h1> @* Título *@
+<p style="color: var(--gris-azulado)">La app usa <strong>una sola cuenta de Google de la empresa</strong>: guarda los archivos de los pedidos en su Drive (carpeta "Gestión de Pedidos") y agenda las fechas de entrega en su Calendar. Los usuarios de la app no necesitan cuenta de Google.</p> @* Explicación *@
+
+<div class="row g-3"> @* Grilla *@
+    <div class="col-lg-7"> @* Columna izquierda *@
+        <div class="card h-100"> @* Tarjeta de estado *@
+            <div class="card-header">Estado de la conexión</div> @* Título *@
+            <div class="card-body"> @* Contenido *@
+                @* Tres situaciones: sin credenciales, sin conectar, conectada *@
+                @if (!configurado)
+                {
+                    <div class="alert alert-warning mb-0">Faltan las credenciales de Google (<code>Autenticacion__Google__ClientId</code> y <code>Autenticacion__Google__ClientSecret</code>) en Railway. Son las mismas del login con Google.</div> @* Sin credenciales *@
+                }
+                else if (Model is null)
+                {
+                    <p><span class="estado estado-pendiente">Sin conectar</span></p> @* Etiqueta *@
+                    <p class="small">Al tocar <strong>Conectar</strong> vas a Google: elegí la cuenta de la empresa y aceptá los permisos de <strong>Drive</strong> y <strong>Calendar</strong>. Se hace una sola vez.</p> @* Instrucciones *@
+                    <form asp-action="Conectar" method="post"><button type="submit" class="btn btn-primary">Conectar cuenta de Google</button></form> @* POST /Integraciones/Conectar *@
+                }
+                else
+                {
+                    <dl class="row mb-3"> @* Datos *@
+                        <dt class="col-sm-4">Estado</dt> @* Etiqueta *@
+                        <dd class="col-sm-8">@(Model.UltimoError is null ? Html.Raw("<span class=\"estado estado-entregado\">Conectada</span>") : Html.Raw("<span class=\"estado estado-cancelado\">Con problemas</span>"))</dd> @* Verde o rojo *@
+                        <dt class="col-sm-4">Cuenta</dt><dd class="col-sm-8">@Model.Email</dd> @* Email de la empresa *@
+                        <dt class="col-sm-4">Conectada</dt><dd class="col-sm-8">@Formato.Fecha(Model.FechaConexion) por @Model.ConectadoPor</dd> @* Cuándo y quién *@
+                        <dt class="col-sm-4">Archivos en Drive</dt><dd class="col-sm-8">@ViewBag.Archivos</dd> @* Cantidad *@
+                        <dt class="col-sm-4">Entregas en Calendar</dt><dd class="col-sm-8">@ViewBag.Eventos de @ViewBag.ConFecha pedido(s) con fecha</dd> @* Cantidad *@
+                    </dl> @* Fin de los datos *@
+                    @* Aviso si Google rechazó el permiso *@
+                    @if (Model.UltimoError is not null)
+                    {
+                        <div class="alert alert-danger">@Model.UltimoError</div> @* Problema *@
+                    }
+                    <div class="d-flex flex-wrap gap-2"> @* Botones *@
+                        <form asp-action="Probar" method="post"><button type="submit" class="btn btn-primary">Probar conexión</button></form> @* Prueba real *@
+                        <form asp-action="Sincronizar" method="post"><button type="submit" class="btn btn-outline-primary">Sincronizar entregas</button></form> @* Pone al día Calendar *@
+                        <form asp-action="Conectar" method="post"><button type="submit" class="btn btn-outline-secondary">Reconectar</button></form> @* Volver a dar permiso *@
+                        <form asp-action="Desconectar" method="post" onsubmit="return confirmar(this)"><button type="submit" class="btn btn-outline-danger">Desconectar</button></form> @* Quitar *@
+                    </div> @* Fin de los botones *@
+                }
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna izquierda *@
+
+    <div class="col-lg-5"> @* Columna derecha *@
+        <div class="card h-100"> @* Tarjeta de ayuda *@
+            <div class="card-header">Qué hace cada cosa</div> @* Título *@
+            <div class="card-body small"> @* Contenido *@
+                <p><strong>📎 Drive:</strong> en el detalle de cada pedido se pueden adjuntar archivos (remitos, facturas, fotos). Se guardan en el Drive de la empresa y se descargan desde la app, así que solo los ven los usuarios con sesión.</p> @* Drive *@
+                <p><strong>📅 Calendar:</strong> cada pedido con <em>fecha de entrega</em> aparece como evento de día completo. Si cambia la fecha o el estado, el evento se actualiza; si se cancela, se borra.</p> @* Calendar *@
+                <p class="mb-1"><strong>Dirección de retorno</strong> (tiene que estar en Google Cloud → Clientes → URIs de redireccionamiento):</p> @* Para configurar *@
+                <code class="d-block text-break">@ViewBag.UrlRetorno</code> @* Para copiar *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna derecha *@
+</div> @* Fin de la grilla *@
+
+<script>
+    // Pide confirmación con un segundo clic (sin ventanas emergentes)
+    function confirmar(formulario) { // Recibe el formulario
+        var boton = formulario.querySelector('button'); // Botón
+        if (boton.dataset.confirmado) return true; // Segundo clic: se envía
+        boton.dataset.confirmado = '1'; // Primer clic
+        boton.textContent = '¿Seguro? Clic otra vez'; // Aviso
+        return false; // No se envía todavía
+    } // Fin de la función
+</script>

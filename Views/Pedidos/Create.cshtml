@@ -19,10 +19,15 @@
                 <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="form-select"><option value="0">— Elegí un cliente —</option></select> @* Combo de clientes *@
                 <span asp-validation-for="ClienteId" class="text-danger small"></span> @* Error *@
             </div> @* Fin del cliente *@
-            <div class="col-md-6"> @* Observaciones *@
+            <div class="col-md-4"> @* Observaciones *@
                 <label asp-for="Observaciones" class="form-label"></label> @* Etiqueta *@
                 <input asp-for="Observaciones" class="form-control" placeholder="Opcional. Si lo dejás vacío se arma con los productos" /> @* Texto libre *@
             </div> @* Fin de observaciones *@
+            <div class="col-md-2"> @* Fecha de entrega *@
+                <label asp-for="FechaEntrega" class="form-label"></label> @* Etiqueta *@
+                <input type="date" name="FechaEntrega" value="@Model.FechaEntrega?.ToString("yyyy-MM-dd")" min="@Formato.HoyArgentina().ToString("yyyy-MM-dd")" class="form-control" /> @* Selector de fecha (opcional); no deja elegir días pasados *@
+                <span asp-validation-for="FechaEntrega" class="text-danger small"></span> @* Error *@
+            </div> @* Fin de la fecha *@
         </div> @* Fin del contenido *@
     </div> @* Fin de la tarjeta *@
 

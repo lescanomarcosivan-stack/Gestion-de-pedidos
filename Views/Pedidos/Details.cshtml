@@ -23,6 +23,19 @@
                     <dt class="col-sm-4">Monto</dt><dd class="col-sm-8 num @(p.Estado == EstadoPedido.Cancelado ? "monto-cancelado" : "")">@Formato.Moneda(p.Monto)</dd> @* Monto (tachado en rojo si está cancelado) *@
                     <dt class="col-sm-4">Creado</dt><dd class="col-sm-8">@Formato.Fecha(p.FechaCreacion)</dd> @* Fecha de creación *@
                     <dt class="col-sm-4">Actualizado</dt><dd class="col-sm-8">@Formato.Fecha(p.FechaActualizacion)</dd> @* Último cambio (manual o por webhook) *@
+                    <dt class="col-sm-4">Entrega programada</dt> @* Fecha de entrega *@
+                    <dd class="col-sm-8"> @* Valor *@
+                        @Formato.Dia(p.FechaEntrega) @* "15/10/2026" o "—" *@
+                        @* Estado del evento en Google Calendar *@
+                        @if (p.CalendarioEventoId is not null)
+                        {
+                            <span class="small ms-2" style="color: var(--azul-700)">📅 en Google Calendar</span> @* Ya está agendado *@
+                        }
+                        else if (p.FechaEntrega is not null && p.Estado != EstadoPedido.Cancelado && Model.GoogleConectado)
+                        {
+                            <span class="small ms-2" style="color: var(--gris-azulado)">(agendando… recargá en unos segundos)</span> @* En cola *@
+                        }
+                    </dd> @* Fin del valor *@
                 </dl> @* Fin de la lista *@
 
                 @* El formulario de cambio de estado solo aparece para Administrador u Operador *@
@@ -37,6 +50,16 @@
                             }
                         </select> @* Fin del combo *@
                         <button type="submit" class="btn btn-primary">Cambiar estado</button> @* Envía el cambio *@
+                    </form> @* Fin del formulario *@
+
+                    <form asp-action="CambiarFechaEntrega" asp-route-id="@p.Id" method="post" class="d-flex flex-wrap gap-2 mt-2"> @* Formulario: POST /Pedidos/CambiarFechaEntrega/{id} *@
+                        <input type="date" name="fechaEntrega" value="@p.FechaEntrega?.ToString("yyyy-MM-dd")" min="@ViewBag.Hoy" class="form-control w-auto" aria-label="Fecha de entrega" /> @* Selector de fecha *@
+                        <button type="submit" class="btn btn-outline-primary">@(p.FechaEntrega is null ? "Programar entrega" : "Cambiar fecha")</button> @* Guarda la fecha *@
+                        @* Quitar solo si hay fecha *@
+                        @if (p.FechaEntrega is not null)
+                        {
+                            <button type="submit" name="quitar" value="true" class="btn btn-link text-danger">Quitar fecha</button> @* Borra la fecha (y el evento de Calendar) *@
+                        }
                     </form> @* Fin del formulario *@
                 }
                 else
@@ -131,6 +154,78 @@
         </div> @* Fin del contenedor *@
     }
 </div> @* Fin de la tarjeta de productos *@
+
+<div class="card mt-3"> @* Tarjeta de archivos adjuntos *@
+    <div class="card-header d-flex justify-content-between align-items-center"> @* Encabezado *@
+        <span>📎 Archivos (Google Drive)</span> @* Título *@
+        <span class="small" style="color: var(--gris-azulado)">@Model.Archivos.Count archivo(s)</span> @* Cantidad *@
+    </div> @* Fin del encabezado *@
+    @* Lista de archivos o mensaje *@
+    @if (Model.Archivos.Count > 0)
+    {
+        <ul class="list-group list-group-flush"> @* Lista *@
+            @* Un renglón por archivo *@
+            @foreach (var a in Model.Archivos)
+            {
+                <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2"> @* Renglón *@
+                    <div> @* Datos *@
+                        <a asp-action="Archivo" asp-route-id="@a.Id">@a.Nombre</a> @* Descarga (pasa por la app) *@
+                        <div class="small" style="color: var(--gris-azulado)">@Formato.Tamano(a.Tamano) · @Formato.Fecha(a.Fecha) · @a.Usuario</div> @* Tamaño, fecha y quién lo subió *@
+                    </div> @* Fin de los datos *@
+                    @* Quitar solo para quien puede editar *@
+                    @if (puedeEditar)
+                    {
+                        <form asp-action="BorrarArchivo" asp-route-id="@a.Id" method="post" class="m-0" onsubmit="return confirmarQuitar(this)"> @* POST /Pedidos/BorrarArchivo/{id} *@
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Quitar</button> @* Botón *@
+                        </form> @* Fin del formulario *@
+                    }
+                </li> @* Fin del renglón *@
+            }
+        </ul> @* Fin de la lista *@
+    }
+    else
+    {
+        <div class="card-body small pb-0" style="color: var(--gris-azulado)">Este pedido no tiene archivos adjuntos.</div> @* Sin archivos *@
+    }
+    <div class="card-body"> @* Zona de subida *@
+        @* Qué se muestra según el rol y la conexión con Google *@
+        @if (!puedeEditar)
+        {
+            <span class="small" style="color: var(--gris-azulado)">Tu rol (Consulta) permite descargar los archivos pero no subirlos.</span> @* Rol consulta *@
+        }
+        else if (!Model.GoogleConectado)
+        {
+            <span class="small" style="color: var(--gris-azulado)">Para adjuntar archivos, un administrador tiene que conectar la cuenta de Google de la empresa (menú <strong>Google</strong>).</span> @* Sin conexión *@
+        }
+        else
+        {
+            <form asp-action="SubirArchivo" asp-route-id="@p.Id" method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center" id="formArchivo"> @* "multipart/form-data" = formulario que lleva archivos *@
+                <input type="file" name="archivo" class="form-control w-auto" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls,.docx,.doc,.txt,.csv" required id="archivo" /> @* Selector de archivo *@
+                <button type="submit" class="btn btn-primary" id="botonSubir">Subir a Drive</button> @* Envía *@
+                <span class="small" style="color: var(--gris-azulado)">PDF, imágenes, Excel, Word, TXT o CSV · máximo 10 MB</span> @* Reglas *@
+            </form> @* Fin del formulario *@
+        }
+    </div> @* Fin de la zona de subida *@
+</div> @* Fin de la tarjeta de archivos *@
+
+<script>
+    // Pide confirmación antes de quitar un archivo
+    function confirmarQuitar(formulario) { // Recibe el formulario que se está enviando
+        var boton = formulario.querySelector('button'); // Botón "Quitar"
+        if (boton.dataset.confirmado) return true; // Segundo clic: se envía
+        boton.dataset.confirmado = '1'; // Marcamos el primer clic
+        boton.textContent = '¿Seguro? Clic otra vez'; // Pedimos confirmación en el mismo botón (sin ventanas emergentes)
+        return false; // Primer clic: no se envía
+    } // Fin de la función
+
+    var formArchivo = document.getElementById('formArchivo'); // Formulario de subida (no existe si no hay permiso o conexión)
+    if (formArchivo) formArchivo.addEventListener('submit', function (e) { // Al enviar...
+        var archivo = document.getElementById('archivo').files[0]; // Archivo elegido
+        if (archivo && archivo.size > 10 * 1024 * 1024) { e.preventDefault(); alert('El archivo supera los 10 MB.'); return; } // Avisamos antes de mandarlo
+        var boton = document.getElementById('botonSubir'); // Botón
+        boton.disabled = true; boton.textContent = 'Subiendo…'; // Evita doble envío y muestra que está trabajando
+    }); // Fin del evento
+</script>
 
 <div class="card mt-3"> @* Tarjeta del historial *@
     <div class="card-header">Historial de estados</div> @* Título *@

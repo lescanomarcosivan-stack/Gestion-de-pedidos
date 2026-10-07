@@ -25,9 +25,11 @@ public class WebhookController : ControllerBase // ControllerBase = controlador 
     private readonly ILogger<WebhookController> _logger; // Para registrar cada aviso en el log
     private readonly IStockService _stock; // Control de stock (cancelar devuelve, reabrir descuenta)
     private readonly INotificador _notificador; // Emails
+    private readonly ColaCalendario _calendario; // Cola de Google Calendar
 
-    public WebhookController(AppDbContext db, IConfiguration config, IAuditoria auditoria, ILogger<WebhookController> logger, IStockService stock, INotificador notificador) // Inyección de dependencias
+    public WebhookController(AppDbContext db, IConfiguration config, IAuditoria auditoria, ILogger<WebhookController> logger, IStockService stock, INotificador notificador, ColaCalendario calendario) // Inyección de dependencias
     { // Inicio del constructor
+        _calendario = calendario; // Guardamos la cola de Calendar
         _stock = stock; // Guardamos el servicio de stock
         _notificador = notificador; // Guardamos el notificador
         _db = db; // Guardamos el DbContext
@@ -88,6 +90,7 @@ public class WebhookController : ControllerBase // ControllerBase = controlador 
             $"Pedido {pedido.Id}: {EstadoMapper.Nombre(estadoAnterior)} → {EstadoMapper.Nombre(nuevoEstado)}", metodo); // Mensaje con el cambio realizado
         _notificador.EstadoCambiado(pedido, estadoAnterior, nuevoEstado); // Emails (después de guardar)
         _notificador.StockBajo(_stock.CruzaronMinimo); // Aviso de stock bajo si corresponde
+        if (pedido.FechaEntrega is not null || pedido.CalendarioEventoId is not null) _calendario.Encolar(pedido.Id); // Calendar: actualiza o borra el evento
         return respuesta; // Respuesta al sistema externo
     } // Fin del método
 

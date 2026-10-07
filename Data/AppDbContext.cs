@@ -17,6 +17,8 @@ public class AppDbContext : DbContext // Hereda de DbContext, la clase base de E
     public DbSet<Producto> Productos => Set<Producto>(); // Tabla "Productos" (catálogo con stock)
     public DbSet<PedidoItem> PedidoItems => Set<PedidoItem>(); // Tabla "PedidoItems" (renglones de cada pedido)
     public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>(); // Tabla "MovimientosStock" (entradas y salidas de stock)
+    public DbSet<ArchivoPedido> ArchivosPedido => Set<ArchivoPedido>(); // Tabla "ArchivosPedido" (adjuntos guardados en Google Drive)
+    public DbSet<IntegracionGoogle> IntegracionesGoogle => Set<IntegracionGoogle>(); // Tabla "IntegracionesGoogle" (conexión con la cuenta de la empresa)
 
     // Nombres de todas las tablas: Program.cs los usa para detectar si la base es de una versión anterior
     public static readonly string[] TablasEsperadas = { "Clientes", "Pedidos", "EventosWebhook", "Usuarios", "HistorialEstados", "RegistrosActividad" }; // Deben coincidir con los DbSet de arriba
@@ -131,5 +133,14 @@ public class AppDbContext : DbContext // Hereda de DbContext, la clase base de E
 
         modelBuilder.Entity<MovimientoStock>() // Índice de movimientos
             .HasIndex(m => m.ProductoId); // Acelera "movimientos del producto 3"
+
+        modelBuilder.Entity<ArchivoPedido>() // Relación archivo → pedido
+            .HasOne(a => a.Pedido) // Cada archivo pertenece a UN pedido...
+            .WithMany() // ...y un pedido tiene muchos archivos (sin lista en Pedido, para no cambiar su estructura)
+            .HasForeignKey(a => a.PedidoId) // Columna que los une
+            .OnDelete(DeleteBehavior.Cascade); // Si se borrara el pedido, se borran sus registros de archivos
+
+        modelBuilder.Entity<ArchivoPedido>() // Índice de archivos
+            .HasIndex(a => a.PedidoId); // Acelera "archivos del pedido 15"
     } // Fin del método
 } // Fin de la clase

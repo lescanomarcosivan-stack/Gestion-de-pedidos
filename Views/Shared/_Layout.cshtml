@@ -84,6 +84,7 @@
                         {
                             <li class="nav-item"><a class="nav-link @(controlador == "Usuarios" ? "active" : "")" asp-controller="Usuarios" asp-action="Index">Usuarios</a></li> @* Administración de usuarios *@
                             <li class="nav-item"><a class="nav-link @(controlador == "Registro" ? "active" : "")" asp-controller="Registro" asp-action="Index">Registro</a></li> @* Bitácora *@
+                            <li class="nav-item"><a class="nav-link @(controlador == "Integraciones" ? "active" : "")" asp-controller="Integraciones" asp-action="Index">Google</a></li> @* Conexión con Google Drive y Calendar *@
                         }
                     </ul> @* Fin de las opciones *@
                     <div class="d-flex align-items-center gap-3 text-white small"> @* Datos del usuario a la derecha *@

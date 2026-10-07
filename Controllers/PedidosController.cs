@@ -17,9 +17,22 @@ public class PedidosController : Controller // Hereda de Controller
     private readonly IAuditoria _auditoria; // Bitácora de actividad
     private readonly IStockService _stock; // Control de stock
     private readonly INotificador _notificador; // Avisos por email
+    private readonly IGoogleEmpresa _google; // Google Drive (archivos) con la cuenta de la empresa
+    private readonly ColaCalendario _calendario; // Cola para poner al día los eventos de Google Calendar
 
-    public PedidosController(AppDbContext db, ITrackingService tracking, IAuditoria auditoria, IStockService stock, INotificador notificador) // Recibe todo por inyección de dependencias
+    private const long MaximoBytes = 10 * 1024 * 1024; // Tamaño máximo de un adjunto: 10 MB
+    private static readonly Dictionary<string, string> TiposPermitidos = new() // Extensiones aceptadas y su tipo de contenido (no confiamos en el que manda el navegador)
+    { // Inicio de la lista
+        [".pdf"] = "application/pdf", [".jpg"] = "image/jpeg", [".jpeg"] = "image/jpeg", [".png"] = "image/png", // PDF e imágenes
+        [".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", [".xls"] = "application/vnd.ms-excel", // Excel
+        [".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document", [".doc"] = "application/msword", // Word
+        [".txt"] = "text/plain", [".csv"] = "text/csv" // Texto
+    }; // Fin de la lista
+
+    public PedidosController(AppDbContext db, ITrackingService tracking, IAuditoria auditoria, IStockService stock, INotificador notificador, IGoogleEmpresa google, ColaCalendario calendario) // Recibe todo por inyección de dependencias
     { // Inicio del constructor
+        _google = google; // Guardamos el servicio de Google
+        _calendario = calendario; // Guardamos la cola de Calendar
         _db = db; // Guardamos el DbContext
         _tracking = tracking; // Guardamos el servicio de tracking
         _auditoria = auditoria; // Guardamos la bitácora
@@ -114,6 +127,9 @@ public class PedidosController : Controller // Hereda de Controller
             .OrderByDescending(h => h.Fecha) // Más nuevos primero
             .ThenByDescending(h => h.Id) // Desempate
             .ToListAsync(); // Ejecuta la consulta
+        modelo.Archivos = await _db.ArchivosPedido.Where(a => a.PedidoId == id).OrderByDescending(a => a.Fecha).ToListAsync(); // Adjuntos del pedido
+        modelo.GoogleConectado = _google.Configurado && await _google.ObtenerConexionAsync() is not null; // ¿Se puede usar Google?
+        ViewBag.Hoy = Formato.HoyArgentina().ToString("yyyy-MM-dd"); // Mínimo del selector de fecha
         return View(modelo); // Muestra Views/Pedidos/Details.cshtml
     } // Fin del método
 
@@ -139,6 +155,7 @@ public class PedidosController : Controller // Hereda de Controller
         var ids = renglones.Select(i => i.ProductoId).Distinct().ToList(); // Productos elegidos
         var productos = await _db.Productos.Where(p => ids.Contains(p.Id) && p.Activo).ToDictionaryAsync(p => p.Id); // Se leen de la base: el precio NUNCA se toma del navegador
         if (productos.Count != ids.Count) ModelState.AddModelError(string.Empty, "Uno de los productos no existe o está inactivo"); // Producto inválido
+        if (formulario.FechaEntrega < Formato.HoyArgentina()) ModelState.AddModelError(nameof(formulario.FechaEntrega), "La fecha de entrega no puede ser anterior a hoy"); // Fecha en el pasado
 
         if (!ModelState.IsValid) // Errores de validación
         { // Inicio del bloque de error
@@ -152,6 +169,7 @@ public class PedidosController : Controller // Hereda de Controller
             Cliente = cliente, // Navegación (la usa el email)
             Estado = EstadoPedido.Pendiente, // Todo pedido nuevo arranca Pendiente
             DescuentoPorcentaje = formulario.DescuentoPorcentaje, // Descuento general
+            FechaEntrega = formulario.FechaEntrega, // Fecha de entrega (opcional)
             FechaCreacion = DateTime.UtcNow, // Fecha de creación
             FechaActualizacion = DateTime.UtcNow // Fecha de última actualización
         }; // Fin de los datos
@@ -188,6 +206,7 @@ public class PedidosController : Controller // Hereda de Controller
 
         await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Actividad, "Alta de pedido", $"Pedido #{pedido.Id} · {pedido.Items.Count} producto(s) · {Formato.Moneda(pedido.Monto)}", "Pedido", pedido.Id); // Bitácora
         _notificador.PedidoCreado(pedido); // Emails (cliente si aceptó, y equipo interno)
+        if (pedido.FechaEntrega is not null) _calendario.Encolar(pedido.Id); // Agenda la entrega en Google Calendar (en segundo plano)
         _notificador.StockBajo(_stock.CruzaronMinimo); // Aviso si algún producto llegó al mínimo
         TempData["Mensaje"] = $"Pedido #{pedido.Id} creado"; // Mensaje de confirmación con el número asignado
         return RedirectToAction(nameof(Details), new { id = pedido.Id }); // Vamos al detalle del pedido nuevo
@@ -226,9 +245,108 @@ public class PedidosController : Controller // Hereda de Controller
             return RedirectToAction(nameof(Details), new { id }); // Volvemos
         } // Fin del catch
         _notificador.EstadoCambiado(pedido, anterior, estado); // Emails al cliente / equipo
+        if (pedido.FechaEntrega is not null || pedido.CalendarioEventoId is not null) _calendario.Encolar(id); // Calendar: cambia el color/título, o borra el evento si se canceló
         _notificador.StockBajo(_stock.CruzaronMinimo); // Aviso de stock bajo (al reabrir puede pasar)
         TempData["Mensaje"] = $"Estado cambiado a {EstadoMapper.Nombre(estado)}" + (pedido.Items.Count > 0 && (estado == EstadoPedido.Cancelado || anterior == EstadoPedido.Cancelado) ? (estado == EstadoPedido.Cancelado ? ". El stock se devolvió." : ". El stock se volvió a descontar.") : ""); // Mensaje de confirmación
         return RedirectToAction(nameof(Details), new { id }); // Vuelve al detalle
+    } // Fin del método
+
+    // POST /Pedidos/CambiarFechaEntrega/15 → fija, cambia o quita la fecha de entrega (y la pone al día en Google Calendar)
+    [HttpPost] // Solo envíos de formulario
+    [ValidateAntiForgeryToken] // Protección contra formularios falsos
+    [Authorize(Roles = Roles.Edicion)] // Solo Administrador u Operador
+    public async Task<IActionResult> CambiarFechaEntrega(int id, DateOnly? fechaEntrega, bool quitar = false) // "quitar" = botón "Quitar fecha"
+    { // Inicio del método
+        var pedido = await _db.Pedidos.FindAsync(id); // Busca el pedido
+        if (pedido is null) return NotFound(); // Si no existe, 404
+        var nueva = quitar ? null : fechaEntrega; // Fecha elegida (o ninguna)
+        if (nueva < Formato.HoyArgentina()) { TempData["Error"] = "La fecha de entrega no puede ser anterior a hoy."; return RedirectToAction(nameof(Details), new { id }); } // Fecha en el pasado
+        if (!quitar && nueva is null) { TempData["Error"] = "Elegí una fecha."; return RedirectToAction(nameof(Details), new { id }); } // Tocó Guardar sin fecha
+        if (pedido.FechaEntrega == nueva) { TempData["Mensaje"] = "La fecha no cambió."; return RedirectToAction(nameof(Details), new { id }); } // Sin cambios
+        var anterior = pedido.FechaEntrega; // Para el registro
+        pedido.FechaEntrega = nueva; // Nueva fecha
+        pedido.FechaActualizacion = DateTime.UtcNow; // Última modificación
+        _auditoria.Registrar(TipoRegistro.Actividad, "Fecha de entrega", $"Pedido #{id}: {Formato.Dia(anterior)} → {Formato.Dia(nueva)}", "Pedido", id); // Bitácora
+        await _db.SaveChangesAsync(); // Guardamos
+        _calendario.Encolar(id); // Calendar se actualiza en segundo plano
+        var conectado = _google.Configurado && await _google.ObtenerConexionAsync() is not null; // ¿Hay Google?
+        TempData["Mensaje"] = (nueva is null ? "Fecha de entrega quitada." : $"Entrega programada para el {Formato.Dia(nueva)}.") + (conectado ? " Google Calendar se actualiza en unos segundos." : ""); // Confirmación
+        return RedirectToAction(nameof(Details), new { id }); // Volvemos al detalle
+    } // Fin del método
+
+    // POST /Pedidos/SubirArchivo/15 → adjunta un archivo al pedido (se guarda en Google Drive de la empresa)
+    [HttpPost] // Solo envíos de formulario
+    [ValidateAntiForgeryToken] // Protección contra formularios falsos
+    [Authorize(Roles = Roles.Edicion)] // Solo Administrador u Operador
+    [RequestSizeLimit(12 * 1024 * 1024)] // El servidor no acepta pedidos de más de 12 MB (10 MB del archivo + margen)
+    [RequestFormLimits(MultipartBodyLengthLimit = 12 * 1024 * 1024)] // Mismo límite para formularios con archivos
+    public async Task<IActionResult> SubirArchivo(int id, IFormFile? archivo) // "archivo" = campo <input type="file" name="archivo">
+    { // Inicio del método
+        if (!await _db.Pedidos.AnyAsync(p => p.Id == id)) return NotFound(); // El pedido tiene que existir
+        string? error = null; // Problema de validación
+        var extension = Path.GetExtension(archivo?.FileName ?? "").ToLowerInvariant(); // Extensión (".pdf")
+        if (archivo is null || archivo.Length == 0) error = "Elegí un archivo."; // No eligió nada
+        else if (archivo.Length > MaximoBytes) error = "El archivo supera los 10 MB."; // Muy grande
+        else if (!TiposPermitidos.ContainsKey(extension)) error = "Tipo de archivo no permitido. Se aceptan PDF, imágenes (JPG, PNG), Excel, Word, TXT y CSV."; // Tipo no aceptado
+        if (error is not null) { TempData["Error"] = error; return RedirectToAction(nameof(Details), new { id }); } // Volvemos con el mensaje
+
+        var nombre = Path.GetFileName(archivo!.FileName); // Solo el nombre (sin carpetas del usuario)
+        if (nombre.Length > 200) nombre = nombre[..(200 - extension.Length)] + extension; // Recortamos nombres larguísimos
+        try // Subimos a Drive
+        { // Inicio del try
+            await using var contenido = archivo.OpenReadStream(); // Contenido del archivo
+            var registro = await _google.SubirArchivoAsync(id, nombre, TiposPermitidos[extension], contenido, archivo.Length, User.Identity!.Name!); // A Google Drive
+            _db.ArchivosPedido.Add(registro); // Guardamos los datos en la base
+            _auditoria.Registrar(TipoRegistro.Google, "Archivo subido a Drive", $"Pedido #{id}: {nombre} ({Formato.Tamano(archivo.Length)})", "Pedido", id); // Bitácora
+            await _db.SaveChangesAsync(); // Guardamos
+            TempData["Mensaje"] = $"Archivo «{nombre}» adjuntado."; // Confirmación
+        } // Fin del try
+        catch (Exception ex) when (ex is ErrorGoogle or HttpRequestException or TaskCanceledException) // Google no respondió o rechazó
+        { // Inicio del catch
+            await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Google, "Drive: error al subir", $"Pedido #{id}: {nombre} · {ex.Message}", "Pedido", id); // Constancia
+            TempData["Error"] = "No se pudo subir a Google Drive: " + ex.Message; // Mensaje
+        } // Fin del catch
+        return RedirectToAction(nameof(Details), new { id }); // Volvemos al detalle
+    } // Fin del método
+
+    // GET /Pedidos/Archivo/7 → descarga un adjunto (pasa por la app: así solo lo baja quien tiene sesión, aunque el Drive sea privado)
+    public async Task<IActionResult> Archivo(int id) // "id" es el Id del archivo
+    { // Inicio del método
+        var archivo = await _db.ArchivosPedido.FirstOrDefaultAsync(a => a.Id == id); // Datos del archivo
+        if (archivo is null) return NotFound(); // No existe
+        try // Lo pedimos a Drive
+        { // Inicio del try
+            var contenido = await _google.DescargarAsync(archivo.DriveId); // Flujo de bytes desde Google
+            return File(contenido, archivo.TipoMime, archivo.Nombre); // Se descarga con su nombre original
+        } // Fin del try
+        catch (Exception ex) when (ex is ErrorGoogle or HttpRequestException or TaskCanceledException) // Error de Google
+        { // Inicio del catch
+            TempData["Error"] = "No se pudo descargar: " + ex.Message; // Mensaje
+            return RedirectToAction(nameof(Details), new { id = archivo.PedidoId }); // Volvemos al pedido
+        } // Fin del catch
+    } // Fin del método
+
+    // POST /Pedidos/BorrarArchivo/7 → quita un adjunto (en Drive va a la papelera: se puede recuperar 30 días)
+    [HttpPost] // Solo envíos de formulario
+    [ValidateAntiForgeryToken] // Protección contra formularios falsos
+    [Authorize(Roles = Roles.Edicion)] // Solo Administrador u Operador
+    public async Task<IActionResult> BorrarArchivo(int id) // "id" es el Id del archivo
+    { // Inicio del método
+        var archivo = await _db.ArchivosPedido.FirstOrDefaultAsync(a => a.Id == id); // Datos del archivo
+        if (archivo is null) return NotFound(); // No existe
+        try // Lo mandamos a la papelera de Drive
+        { // Inicio del try
+            await _google.BorrarArchivoAsync(archivo.DriveId); // Drive
+            _db.ArchivosPedido.Remove(archivo); // Base
+            _auditoria.Registrar(TipoRegistro.Google, "Archivo quitado", $"Pedido #{archivo.PedidoId}: {archivo.Nombre} (en la papelera de Drive)", "Pedido", archivo.PedidoId); // Bitácora
+            await _db.SaveChangesAsync(); // Guardamos
+            TempData["Mensaje"] = $"Archivo «{archivo.Nombre}» quitado."; // Confirmación
+        } // Fin del try
+        catch (Exception ex) when (ex is ErrorGoogle or HttpRequestException or TaskCanceledException) // Error de Google
+        { // Inicio del catch
+            TempData["Error"] = "No se pudo quitar: " + ex.Message; // Mensaje
+        } // Fin del catch
+        return RedirectToAction(nameof(Details), new { id = archivo.PedidoId }); // Volvemos al pedido
     } // Fin del método
 
     // ---------- Auxiliares ----------

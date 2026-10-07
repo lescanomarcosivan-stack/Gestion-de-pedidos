@@ -40,6 +40,9 @@ builder.Services.AddScoped<IStockService, StockService>(); // Stock: una instanc
 builder.Services.AddSingleton<ColaEmails>(); // Cola de emails: una sola para toda la app
 builder.Services.AddHostedService<EnvioEmailsWorker>(); // Trabajador en segundo plano que envía los emails de la cola
 builder.Services.AddScoped<INotificador, Notificador>(); // Arma los emails y los deja en la cola
+builder.Services.AddHttpClient<IGoogleEmpresa, GoogleEmpresa>(c => c.Timeout = TimeSpan.FromSeconds(90)); // Google Drive y Calendar con la cuenta de la empresa (90 s: alcanza para subir archivos de 10 MB)
+builder.Services.AddSingleton<ColaCalendario>(); // Cola de pedidos cuyo evento de Calendar hay que actualizar
+builder.Services.AddHostedService<CalendarioWorker>(); // Trabajador en segundo plano que habla con Google Calendar
 builder.Services.AddSingleton<IPasswordHasher<Usuario>, PasswordHasher<Usuario>>(); // Cifrador de contraseñas de Microsoft (PBKDF2 + sal aleatoria + 100.000 iteraciones)
 builder.Services.AddExceptionHandler<ManejadorErrores>(); // Guarda en la bitácora los errores no controlados
 builder.Services.AddProblemDetails(); // Formato estándar de errores (lo requiere el manejador de excepciones)

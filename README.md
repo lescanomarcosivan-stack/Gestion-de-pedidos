@@ -44,6 +44,12 @@ Las cuentas nuevas (con **Crear cuenta** o **Ingresar con Google**) quedan **ina
 - **Notificaciones por email** en segundo plano (cola + worker): al **cliente** (si aceptó recibirlas) cuando se crea, envía, entrega o cancela su pedido; al **equipo** (`Notificaciones__EmailsInternos`) por pedido nuevo, cancelación y **stock bajo**. Cada envío queda en *Registro* (tipo Email).
 - **Reportes Excel (.xlsx) y PDF** de pedidos (con los filtros del listado) y de stock, generados por la propia app sin librerías externas.
 
+**Google Drive y Calendar (versión 4)**
+- Se conecta **una cuenta de Google de la empresa** (OAuth 2.0 *offline*, una sola vez, desde el menú *Google*, solo administradores). La llave (refresh token) se guarda **cifrada con AES-GCM**.
+- **Archivos adjuntos** en cada pedido (PDF, imágenes, Excel, Word, TXT, CSV; hasta 10 MB), guardados en la carpeta "Gestión de Pedidos" del Drive de la empresa. Permiso `drive.file`: la app solo ve los archivos que ella creó. La descarga pasa por la app (requiere sesión).
+- **Fecha de entrega** en el pedido, publicada en **Google Calendar** como evento de día completo. Se actualiza sola al cambiar fecha o estado y se borra si el pedido se cancela (cola + trabajador en segundo plano, idempotente).
+- Sin librerías de Google: llamadas HTTP directas a las APIs REST.
+
 **Usabilidad**
 - Si la fecha "Desde" es posterior a "Hasta" se muestra un error, sin listar resultados.
 - Botón **Limpiar filtros** en todos los listados.
@@ -129,6 +135,7 @@ Cada evento queda en *Webhooks* con una marca **✓ Procesado** o **✗ Rechazad
 | `Email__BrevoApiKey` / `Email__Remitente` | No | Envío de emails por la API de Brevo. Sin esto, el enlace de recuperación queda en los logs del servidor |
 | `Registro__AprobacionAutomatica` | No | `false` por defecto: las cuentas nuevas requieren aprobación del administrador. `true`: se activan solas con rol Consulta |
 | `Notificaciones__EmailsInternos` | No | Emails del equipo separados por coma (pedido nuevo, cancelado, stock bajo) |
+| `Google__CalendarioId` | No | Calendario para las entregas (vacío = el principal de la cuenta conectada) |
 | `Tracking__BaseUrl` | No | API de seguimiento real (vacío = mock incluido) |
 
 > Los emails se envían por la API HTTP de Brevo porque Railway bloquea SMTP en los planes que no son Pro.
@@ -137,9 +144,9 @@ Cada evento queda en *Webhooks* con una marca **✓ Procesado** o **✗ Rechazad
 
 Las tablas se crean solas al iniciar (`EnsureCreated`). Si la app detecta tablas de una versión anterior, las recrea con datos de ejemplo (es una base de demostración). En un sistema productivo se usarían **migraciones** de EF Core.
 
-Tablas: `Clientes`, `Pedidos`, `PedidoItems`, `Productos`, `MovimientosStock`, `HistorialEstados`, `EventosWebhook`, `Usuarios`, `RegistrosActividad`.
+Tablas: `Clientes`, `Pedidos`, `PedidoItems`, `Productos`, `MovimientosStock`, `HistorialEstados`, `EventosWebhook`, `Usuarios`, `RegistrosActividad`, `ArchivosPedido`, `IntegracionesGoogle`.
 
-Las tablas y columnas de la versión 3 se agregan a una base existente con `Data/ActualizacionesBase.cs` (SQL con `IF NOT EXISTS`), **sin borrar datos**.
+Las tablas y columnas de las versiones 3 y 4 se agregan a una base existente con `Data/ActualizacionesBase.cs` (SQL con `IF NOT EXISTS`), **sin borrar datos**.
 
 ## Estructura
 
@@ -159,6 +166,9 @@ Controllers/RegistroController.cs       Bitácora (admin)
 Controllers/HomeController.cs           Dashboard, webhooks y probador
 Controllers/ClientesController.cs       Clientes
 Controllers/PedidosController.cs        Pedidos
+Controllers/IntegracionesController.cs  Conexión con Google (admin)
+Services/GoogleEmpresa.cs               OAuth, Google Drive y Google Calendar
+Services/ColaCalendario.cs              Cola y trabajador de Calendar
 Controllers/Api/WebhookController.cs    POST /api/webhooks/orders
 Controllers/Api/TrackingMockController.cs  GET /api/mock/tracking/{id}
 Views/                                  Pantallas Razor (paleta de azules en Shared/_Layout.cshtml)

@@ -23,5 +23,11 @@ public static class Formato // Clase estática: se usa como Formato.Moneda(...)
     // Muestra una fecha UTC en hora de Argentina (UTC-3 todo el año, sin horario de verano)
     public static string Fecha(DateTime fechaUtc) => fechaUtc.AddHours(-3).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture); // Resta 3 horas y da formato día/mes/año
 
+    public static string Dia(DateOnly? dia) => dia?.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture) ?? "—"; // Fecha sin hora (ej. fecha de entrega); "—" si no tiene
+
+    public static DateOnly HoyArgentina() => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3)); // Día de hoy en Argentina (UTC-3)
+
+    public static string Tamano(long bytes) => bytes < 1024 * 1024 ? $"{Math.Max(1, bytes / 1024)} KB" : (bytes / 1024d / 1024d).ToString("N1", Numeros) + " MB"; // 2.500.000 → "2,4 MB"
+
     public static string FechaCorta(DateTime fechaUtc) => fechaUtc.AddHours(-3).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture); // Solo el día, sin hora
 } // Fin de la clase

@@ -402,3 +402,61 @@ Un `.xlsx` es un ZIP con archivos XML adentro (formato Office Open XML). `Export
 **B — Limitar el descuento por renglón a 30 %.** En `Models/ViewModels.cs`, en `ItemFormulario`, cambiá `[Range(0, 100, ...)]` por `[Range(0, 30, ErrorMessage = "Máximo 30 %")]`.
 
 **C — Avisar también al cliente cuando el pedido pasa a "En preparación".** En `Services/Notificador.cs`, agregá `EstadoPedido.EnPreparacion` al arreglo `EstadosQueAvisanAlCliente` y un caso en el `switch` del texto.
+
+## 9. Versión 4 (etapa 2) — Google Drive y Google Calendar
+
+### 9.1 Qué hace
+- **Drive:** en el detalle del pedido se adjuntan archivos (PDF, imágenes, Excel, Word, TXT, CSV; máximo 10 MB). Se guardan en el Drive de la empresa, en la carpeta "Gestión de Pedidos", con el nombre `Pedido 15 - remito.pdf`. Se descargan **a través de la app**.
+- **Calendar:** cada pedido puede tener **fecha de entrega**. Si la tiene, aparece en el Google Calendar de la empresa como evento de día completo. Si cambia la fecha o el estado, el evento se actualiza (verde con ✓ al entregarse); si se cancela o se quita la fecha, se borra.
+- **Pantalla Google** (solo admin): conectar, probar, sincronizar y desconectar la cuenta.
+
+### 9.2 Archivos nuevos
+| Archivo | Qué hace |
+|---|---|
+| `Models/ArchivoPedido.cs` | Datos del adjunto (el contenido vive en Drive; acá solo el id de Drive, nombre, tipo, tamaño, quién y cuándo) |
+| `Models/IntegracionGoogle.cs` | La conexión con la cuenta de la empresa (una fila), con la llave **cifrada** |
+| `Services/GoogleEmpresa.cs` | Todo lo que habla con Google: permiso (OAuth), Drive y Calendar, con llamadas HTTP directas |
+| `Services/ColaCalendario.cs` | Cola + trabajador en segundo plano que pone al día los eventos de Calendar |
+| `Controllers/IntegracionesController.cs` | Pantalla Google (conectar, probar, sincronizar, desconectar) |
+| `Views/Integraciones/Index.cshtml` | Esa pantalla |
+
+Cambios: `Pedido` tiene `FechaEntrega` y `CalendarioEventoId`; `PedidosController` suma `CambiarFechaEntrega`, `SubirArchivo`, `Archivo` (descarga) y `BorrarArchivo`; el webhook también actualiza Calendar.
+
+### 9.3 Preguntas probables
+
+**¿Cómo accede la app al Drive y al Calendar de la empresa?**
+Con **OAuth 2.0 en modo "offline"**. Un administrador toca *Conectar*, Google le pregunta si autoriza a la app a usar Drive y Calendar, y Google devuelve un **código**. La app canjea ese código por un **refresh token** (una llave permanente) y lo guarda cifrado. Cada vez que necesita Google, canjea esa llave por un **access token** que dura una hora (lo guarda en memoria para no pedirlo en cada llamada) y lo manda en el header `Authorization: Bearer ...`.
+
+**¿Por qué no una "cuenta de servicio" (service account)?**
+Fue la primera idea, pero las cuentas de servicio **no tienen espacio propio en Drive**: los archivos que suben a una cuenta de Gmail común fallan por falta de cuota. Solo funcionan con *unidades compartidas* de Google Workspace (pago). Conectar la cuenta de la empresa con OAuth cumple lo mismo ("una cuenta de la empresa") y funciona con un Gmail gratuito.
+
+**¿Qué permisos pide y por qué esos?**
+`drive.file`: la app **solo ve los archivos que ella misma creó**, no el resto del Drive de la empresa (principio de mínimo privilegio). `calendar.events`: crear, cambiar y borrar eventos. Además `openid email` para saber qué cuenta se conectó. Si el admin destilda una casilla en Google, la app lo detecta y pide reconectar.
+
+**¿Cómo protegés la llave guardada?**
+Se cifra con **AES-GCM** (cifrado autenticado: si alguien modifica el dato, se detecta). La clave de cifrado se deriva con SHA-256 del `ClientSecret` de Google, que vive solo en las variables de Railway. Si alguien roba una copia de la base, no puede usar la llave. Si se cambia el ClientSecret, la llave guardada ya no se puede descifrar y hay que reconectar (la app lo avisa).
+
+**¿Qué es el parámetro `state`?**
+Un código al azar que la app guarda en una cookie antes de ir a Google y compara cuando Google vuelve. Evita que alguien fuerce a un admin a conectar **otra** cuenta (ataque CSRF sobre OAuth).
+
+**¿Por qué la descarga pasa por la app y no es un enlace directo a Drive?**
+Porque el Drive de la empresa es privado: un enlace directo no lo podrían abrir los usuarios. Pasando por la app, se aplica la misma seguridad que al resto (hay que tener sesión) y el archivo se transmite en flujo, sin guardarlo en el servidor.
+
+**¿Cómo validás los archivos subidos?**
+Tamaño máximo 10 MB (en el navegador, en el controlador y con `RequestSizeLimit` en el servidor), lista de extensiones permitidas, y el tipo de contenido lo decide el servidor según la extensión (no se confía en el que manda el navegador). Se descarga siempre como adjunto, así un archivo no puede ejecutar código en la página.
+
+**¿Por qué Calendar va por una cola y Drive no?**
+Al subir un archivo el usuario necesita saber si salió bien, así que se espera la respuesta. El evento de Calendar es una consecuencia secundaria: si Google tarda o falla, el pedido igual se tiene que guardar. Por eso se encola el número de pedido y un `BackgroundService` lo procesa. El trabajador es **idempotente**: no "agrega" un evento, sino que deja el evento **igual al pedido** (crear si falta, actualizar si existe, borrar si no corresponde). Así no importa cuántas veces se encole el mismo pedido. Si alguien borró el evento a mano en Calendar, se vuelve a crear.
+
+**¿Qué pasa si Google revoca el permiso?**
+Al pedir un token, Google responde `invalid_grant`. La app guarda el aviso en `UltimoError` y la pantalla Google muestra "Con problemas — volvé a conectar". Los errores de Calendar quedan en Registro, tipo Google.
+
+**¿Por qué subida "reanudable" (resumable)?**
+Drive tiene dos formas de subir. La simple solo se recomienda hasta 5 MB; la reanudable funciona con cualquier tamaño: primero se avisa nombre, carpeta y tamaño, Google devuelve una dirección de subida, y después se manda el contenido.
+
+### 9.4 Ejercicios
+**A — Aceptar también archivos ZIP.** En `PedidosController`, agregá `[".zip"] = "application/zip"` a `TiposPermitidos`, y `.zip` al `accept` del input en `Views/Pedidos/Details.cshtml`.
+
+**B — Subir el límite a 20 MB.** Cambiá `MaximoBytes` a `20 * 1024 * 1024`, los dos atributos `RequestSizeLimit`/`RequestFormLimits` a `22 * 1024 * 1024` y el control de JavaScript en `Details.cshtml`.
+
+**C — Que el evento de Calendar dure de 9 a 18 en vez de todo el día.** En `GoogleEmpresa.ArmarEvento`, cambiá `start = new { date = ... }` por `start = new { dateTime = dia.ToString("yyyy-MM-dd") + "T09:00:00", timeZone = "America/Argentina/Buenos_Aires" }` y lo mismo en `end` con `T18:00:00`.

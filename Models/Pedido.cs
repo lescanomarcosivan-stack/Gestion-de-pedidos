@@ -41,5 +41,12 @@ public class Pedido // Clase pública
     [ValidateNever] // MVC no valida esta lista
     public List<PedidoItem> Items { get; set; } = new(); // Productos del pedido (los pedidos viejos, de antes de esta versión, no tienen)
 
+    [DataType(DataType.Date)] // Solo fecha, sin hora
+    [Display(Name = "Fecha de entrega")] // Etiqueta
+    public DateOnly? FechaEntrega { get; set; } // Día programado para entregar (opcional). Se publica en Google Calendar
+
+    [StringLength(200)] // Tamaño de la columna
+    public string? CalendarioEventoId { get; set; } // Id del evento en Google Calendar (para poder modificarlo o borrarlo después)
+
     public decimal Subtotal => Items.Sum(i => i.Subtotal); // Calculado (no es columna): suma de los renglones antes del descuento general
 } // Fin de la clase

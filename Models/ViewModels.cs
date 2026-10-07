@@ -11,6 +11,8 @@ public class PedidoDetalleViewModel // Junta el pedido de la base con la info de
     public TrackingInfo? Tracking { get; set; } // Datos de seguimiento (salen de la API externa); null si falló o no corresponde
     public string? ErrorTracking { get; set; } // Mensaje de error si la API externa no respondió
     public List<HistorialEstado> Historial { get; set; } = new(); // Todos los cambios de estado del pedido, del más nuevo al más viejo
+    public List<ArchivoPedido> Archivos { get; set; } = new(); // Archivos adjuntos (guardados en Google Drive)
+    public bool GoogleConectado { get; set; } // true si la cuenta de Google de la empresa está conectada (habilita subir archivos y Calendar)
 } // Fin de la clase
 
 // Una fila del listado de clientes (con la cantidad de pedidos ya calculada por la base)
@@ -95,6 +97,10 @@ public class PedidoFormulario // Separado de Pedido para validar solo lo que esc
     [Range(0, 100, ErrorMessage = "El descuento va de 0 a 100 %")] // Porcentaje válido
     [Display(Name = "Descuento general (%)")] // Etiqueta
     public decimal DescuentoPorcentaje { get; set; } // Descuento sobre el total
+
+    [DataType(DataType.Date)] // Campo de fecha
+    [Display(Name = "Fecha de entrega")] // Etiqueta
+    public DateOnly? FechaEntrega { get; set; } // Opcional: si se carga, se agenda en Google Calendar
 
     public List<ItemFormulario> Items { get; set; } = new() { new ItemFormulario() }; // Renglones (arranca con uno vacío)
 } // Fin de la clase
