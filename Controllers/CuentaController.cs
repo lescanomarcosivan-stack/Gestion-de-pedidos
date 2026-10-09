@@ -191,9 +191,17 @@ public class CuentaController : Controller // Atiende las URLs /Cuenta/...
             await _db.SaveChangesAsync(); // INSERT
             await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Acceso, "Registro con Google", usuario.Activo ? "Aprobada automáticamente (rol Consulta)" : "Pendiente de aprobación", "Usuario", usuario.Id, email); // Registramos
         } // Fin del bloque
-        else if (usuario.GoogleId is null) // Ya tenía cuenta con contraseña y es la primera vez que usa Google
+        else if (usuario.GoogleId is null) // Ya tenía cuenta (con contraseña o invitada) y es la primera vez que usa Google
         { // Inicio del bloque
             usuario.GoogleId = googleId; // Vinculamos su cuenta de Google
+            if (usuario.InvitacionPendiente && usuario.Email == email) // Estaba invitada: Google acaba de verificar que ese email es suyo
+            { // Inicio del bloque
+                usuario.InvitacionPendiente = false; // La invitación queda aceptada
+                usuario.Activo = true; // Cuenta habilitada con el rol que eligió el admin
+                usuario.TokenRecuperacionHash = null; // El enlace del email ya no hace falta
+                usuario.TokenRecuperacionVence = null; // Sin vencimiento pendiente
+                _auditoria.Registrar(TipoRegistro.Acceso, "Invitación aceptada", "Con Google", "Usuario", usuario.Id, email); // Bitácora
+            } // Fin del bloque
             await _db.SaveChangesAsync(); // UPDATE
         } // Fin del bloque
 
@@ -271,6 +279,50 @@ public class CuentaController : Controller // Atiende las URLs /Cuenta/...
         await _db.SaveChangesAsync(); // Guardamos todo junto
         TempData["Mensaje"] = "Contraseña actualizada. Ya podés iniciar sesión."; // Aviso
         return RedirectToAction(nameof(Login)); // Al login
+    } // Fin del método
+
+    // GET /Cuenta/AceptarInvitacion?email=...&token=... → la persona invitada llega desde el email
+    [AllowAnonymous] // Público (todavía no tiene contraseña)
+    public async Task<IActionResult> AceptarInvitacion(string? email, string? token) // Datos del enlace
+    { // Inicio del método
+        var usuario = await BuscarInvitacionAsync(email, token); // ¿Enlace válido?
+        if (usuario is null) return View("InvitacionInvalida"); // Vencido, ya usado o falso
+        return View(new AceptarInvitacionViewModel { Email = usuario.Email, Token = token!, Nombre = usuario.Nombre, Rol = usuario.Rol }); // Formulario con el nombre que cargó el admin
+    } // Fin del método
+
+    // POST /Cuenta/AceptarInvitacion → guarda la contraseña, activa la cuenta e inicia sesión
+    [HttpPost, AllowAnonymous, ValidateAntiForgeryToken] // Formulario público con token anti-falsificación
+    [EnableRateLimiting("login")] // Evita probar códigos al azar
+    public async Task<IActionResult> AceptarInvitacion(AceptarInvitacionViewModel modelo) // Datos del formulario
+    { // Inicio del método
+        var usuario = await BuscarInvitacionAsync(modelo.Email, modelo.Token); // Volvemos a validar el enlace (nunca confiar en lo que viene oculto)
+        if (usuario is null) return View("InvitacionInvalida"); // Venció mientras completaba, o es falso
+        modelo.Rol = usuario.Rol; // Para volver a mostrarlo si hay errores
+        if (!ModelState.IsValid) return View(modelo); // Contraseña inválida o distinta
+
+        usuario.Nombre = modelo.Nombre.Trim(); // Nombre (pudo corregirlo)
+        usuario.PasswordHash = _hasher.HashPassword(usuario, modelo.Password); // Solo el hash de la contraseña
+        usuario.InvitacionPendiente = false; // Invitación aceptada
+        usuario.Activo = true; // Cuenta habilitada
+        usuario.TokenRecuperacionHash = null; // El enlace se usa una sola vez
+        usuario.TokenRecuperacionVence = null; // Sin vencimiento pendiente
+        _auditoria.Registrar(TipoRegistro.Acceso, "Invitación aceptada", $"Rol {usuario.Rol}", "Usuario", usuario.Id, usuario.Email); // Bitácora
+        await _db.SaveChangesAsync(); // Guardamos
+        await IniciarSesionAsync(usuario, "invitación"); // Entra directamente, sin volver a escribir la contraseña
+        TempData["Mensaje"] = $"¡Bienvenido/a, {usuario.Nombre}! Tu cuenta quedó activa."; // Saludo
+        return RedirectToAction("Index", "Home"); // Al dashboard
+    } // Fin del método
+
+    private async Task<Usuario?> BuscarInvitacionAsync(string? email, string? token) // Devuelve el usuario si el enlace es válido, o null
+    { // Inicio del método
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token)) return null; // Faltan datos
+        var normalizado = email.Trim().ToLowerInvariant(); // Normalizamos
+        var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.Email == normalizado && u.InvitacionPendiente); // Solo invitaciones pendientes
+        var valido = usuario?.TokenRecuperacionHash is not null // Tiene código...
+            && usuario.TokenRecuperacionVence > DateTime.UtcNow // ...vigente...
+            && FirmaWebhook.SonIguales(usuario.TokenRecuperacionHash, CodigosSeguros.Hash(token)); // ...y coincide (comparación en tiempo constante)
+        if (!valido) await _auditoria.RegistrarYGuardarAsync(TipoRegistro.Acceso, "Invitación: enlace inválido o vencido", null, usuario: normalizado); // Registramos el intento
+        return valido ? usuario : null; // Resultado
     } // Fin del método
 
     // GET /Cuenta/AccesoDenegado → el usuario inició sesión pero su rol no alcanza

@@ -1,0 +1,28 @@
+@* Pantalla a la que llega la persona invitada desde el email: elige su contraseña y entra *@
+@* La vista recibe email, código (ocultos), nombre y rol *@
+@model AceptarInvitacionViewModel
+@{
+    ViewData["Title"] = "Activar cuenta"; // Título de la pestaña
+}
+
+<div class="row justify-content-center"> @* Centra la tarjeta *@
+    <div class="col-md-6 col-lg-4"> @* Ancho *@
+        <h1 class="h3 text-center mb-1">Activá tu cuenta</h1> @* Título *@
+        <p class="text-center mb-4" style="color: var(--gris-azulado)">Gestión de Pedidos</p> @* Subtítulo *@
+        <div class="card shadow-sm"> @* Tarjeta *@
+            <div class="card-body p-4"> @* Contenido *@
+                <form asp-action="AceptarInvitacion" method="post"> @* POST /Cuenta/AceptarInvitacion *@
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div> @* Errores generales *@
+                    <input type="hidden" asp-for="Email" /> @* Email oculto *@
+                    <input type="hidden" asp-for="Token" /> @* Código secreto oculto *@
+                    <p class="small mb-3">Cuenta: <strong>@Model.Email</strong><br />Rol: <strong>@Model.Rol</strong></p> @* Para quién es y con qué rol *@
+                    <div class="mb-3"><label asp-for="Nombre" class="form-label"></label><input asp-for="Nombre" class="form-control" /><span asp-validation-for="Nombre" class="text-danger small"></span></div> @* Nombre (lo puede corregir) *@
+                    <div class="mb-3"><label asp-for="Password" class="form-label"></label><input asp-for="Password" class="form-control" autocomplete="new-password" /><span asp-validation-for="Password" class="text-danger small"></span></div> @* Contraseña *@
+                    <div class="mb-3"><label asp-for="ConfirmarPassword" class="form-label"></label><input asp-for="ConfirmarPassword" class="form-control" autocomplete="new-password" /><span asp-validation-for="ConfirmarPassword" class="text-danger small"></span></div> @* Repetir *@
+                    <p class="small" style="color: var(--gris-azulado)">Mínimo 8 caracteres, con letras y números.</p> @* Reglas *@
+                    <button type="submit" class="btn btn-primary w-100">Activar cuenta y entrar</button> @* Envía *@
+                </form> @* Fin del formulario *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

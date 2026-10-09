@@ -1,0 +1,17 @@
+@* Se muestra cuando el enlace de invitación venció, ya se usó o no es válido *@
+@{
+    ViewData["Title"] = "Invitación no válida"; // Título de la pestaña
+}
+
+<div class="row justify-content-center"> @* Centra la tarjeta *@
+    <div class="col-md-6 col-lg-5"> @* Ancho *@
+        <div class="card shadow-sm"> @* Tarjeta *@
+            <div class="card-body p-4 text-center"> @* Contenido *@
+                <h1 class="h4 mb-3">El enlace no es válido</h1> @* Título *@
+                <p>Puede que haya vencido (dura 72 horas), que ya lo hayas usado o que esté incompleto.</p> @* Causas *@
+                <p class="small" style="color: var(--gris-azulado)">Si ya activaste tu cuenta, iniciá sesión. Si no, pedile al administrador que te reenvíe la invitación.</p> @* Qué hacer *@
+                <a class="btn btn-primary" asp-action="Login">Ir a iniciar sesión</a> @* Botón *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+</div> @* Fin de la fila *@

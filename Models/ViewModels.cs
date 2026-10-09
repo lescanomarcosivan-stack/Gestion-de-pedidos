@@ -197,6 +197,49 @@ public class RestablecerClaveViewModel // Datos de la pantalla "Nueva contraseñ
     public string ConfirmarPassword { get; set; } = string.Empty; // Confirmación
 } // Fin de la clase
 
+// Formulario de la pantalla "Invitar usuario" (lo completa el administrador)
+public class InvitarUsuarioViewModel // Datos de la invitación
+{ // Inicio de la clase
+    [Required(ErrorMessage = "Ingresá el nombre")] // Obligatorio
+    [StringLength(120, ErrorMessage = "Máximo 120 caracteres")] // Tamaño de la columna
+    [Display(Name = "Nombre")] // Etiqueta
+    public string Nombre { get; set; } = string.Empty; // Nombre de la persona invitada
+
+    [Required(ErrorMessage = "Ingresá el email")] // Obligatorio
+    [EmailAddress(ErrorMessage = "Email inválido")] // Formato de email
+    [StringLength(150)] // Tamaño de la columna
+    [Display(Name = "Email")] // Etiqueta
+    public string Email { get; set; } = string.Empty; // A dónde llega la invitación (y con qué email va a entrar)
+
+    [Display(Name = "Rol")] // Etiqueta
+    public string Rol { get; set; } = Roles.Operador; // Rol con el que va a entrar
+} // Fin de la clase
+
+// Formulario de la pantalla "Aceptar invitación" (lo completa la persona invitada al hacer clic en el email)
+public class AceptarInvitacionViewModel // Datos de la pantalla
+{ // Inicio de la clase
+    [Required] public string Email { get; set; } = string.Empty; // Email (viene oculto)
+    [Required] public string Token { get; set; } = string.Empty; // Código secreto del email (viene oculto)
+    public string Rol { get; set; } = string.Empty; // Solo para mostrar con qué rol entra
+
+    [Required(ErrorMessage = "Ingresá tu nombre")] // Obligatorio
+    [StringLength(120, ErrorMessage = "Máximo 120 caracteres")] // Tamaño
+    [Display(Name = "Tu nombre")] // Etiqueta
+    public string Nombre { get; set; } = string.Empty; // Viene cargado por el admin; la persona lo puede corregir
+
+    [Required(ErrorMessage = "Ingresá una contraseña")] // Obligatorio
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "Mínimo 8 caracteres")] // Largo mínimo
+    [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Debe tener al menos una letra y un número")] // Letras y números
+    [DataType(DataType.Password)] // Campo oculto
+    [Display(Name = "Contraseña")] // Etiqueta
+    public string Password { get; set; } = string.Empty; // Contraseña elegida
+
+    [Compare(nameof(Password), ErrorMessage = "Las contraseñas no coinciden")] // Igual a la anterior
+    [DataType(DataType.Password)] // Campo oculto
+    [Display(Name = "Repetir contraseña")] // Etiqueta
+    public string ConfirmarPassword { get; set; } = string.Empty; // Confirmación
+} // Fin de la clase
+
 // Formulario de la pantalla "Probar webhook"
 public class ProbarWebhookViewModel // Datos para armar y enviar un evento de prueba
 { // Inicio de la clase

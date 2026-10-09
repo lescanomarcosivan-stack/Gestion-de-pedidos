@@ -460,3 +460,43 @@ Drive tiene dos formas de subir. La simple solo se recomienda hasta 5 MB; la rea
 **B — Subir el límite a 20 MB.** Cambiá `MaximoBytes` a `20 * 1024 * 1024`, los dos atributos `RequestSizeLimit`/`RequestFormLimits` a `22 * 1024 * 1024` y el control de JavaScript en `Details.cshtml`.
 
 **C — Que el evento de Calendar dure de 9 a 18 en vez de todo el día.** En `GoogleEmpresa.ArmarEvento`, cambiá `start = new { date = ... }` por `start = new { dateTime = dia.ToString("yyyy-MM-dd") + "T09:00:00", timeZone = "America/Argentina/Buenos_Aires" }` y lo mismo en `end` con `T18:00:00`.
+
+## 10. Versión 5 — Invitar usuarios por email
+
+### 10.1 Cómo funciona
+1. El admin completa **nombre, email y rol** en *Usuarios → Invitar*.
+2. Se crea la cuenta **inactiva** con `InvitacionPendiente = true` y el rol elegido. Todavía no tiene contraseña, así que nadie puede entrar con ella.
+3. Se genera un **código al azar** (32 bytes). En la base se guarda **solo su hash SHA-256** y el vencimiento (72 horas). El código real viaja únicamente en el enlace del email.
+4. La persona hace clic → `/Cuenta/AceptarInvitacion?email=...&token=...` → la app verifica que la invitación esté pendiente, que no haya vencido y que el hash coincida (comparación en tiempo constante).
+5. Elige su contraseña (se guarda con PBKDF2), la cuenta se activa, el código se borra (un solo uso) y entra directo.
+
+### 10.2 Archivos
+| Archivo | Cambio |
+|---|---|
+| `Models/Usuario.cs` | `InvitacionPendiente` e `InvitadoPor` |
+| `Services/CodigosSeguros.cs` | Generar el código y calcular su hash |
+| `Controllers/UsuariosController.cs` | `Invitar`, `ReenviarInvitacion`, `CancelarInvitacion` y el armado del email |
+| `Controllers/CuentaController.cs` | `AceptarInvitacion` (GET y POST); con Google, una invitación pendiente se acepta sola si el email coincide |
+| `Views/Usuarios/Invitar.cshtml`, `Views/Cuenta/AceptarInvitacion.cshtml`, `Views/Cuenta/InvitacionInvalida.cshtml` | Pantallas nuevas |
+
+### 10.3 Preguntas probables
+
+**¿Por qué no le mandás una contraseña provisoria por email?**
+Porque el email no es un canal seguro (queda guardado en bandejas y servidores) y la persona tendría que cambiarla después. Con el enlace, la contraseña la elige ella y nunca viaja por email ni la conoce el admin.
+
+**¿Qué pasa si alguien roba la base de datos?**
+Tiene el hash del código, no el código. Con un hash no se puede armar el enlace.
+
+**¿Y si el email no llega?**
+La cuenta igual queda creada y la pantalla muestra el enlace al admin para que lo mande por otro medio. El admin es de confianza: es quien está dando el acceso. Además puede tocar **Reenviar**: se genera un código nuevo y el anterior deja de servir.
+
+**¿Se reutiliza el mecanismo de "olvidé mi contraseña"?**
+Sí, se usan las mismas columnas (`TokenRecuperacionHash` y `TokenRecuperacionVence`), pero los flujos no se mezclan: la recuperación solo funciona con cuentas **activas**, y la invitación solo con cuentas con **invitación pendiente**. Un enlace de un tipo no sirve para el otro.
+
+**¿Por qué el admin no puede "Activar" una cuenta invitada?**
+Porque no tiene contraseña: quedaría activa pero sin forma de entrar. Se activa sola cuando la persona elige su contraseña (o cuando entra con Google con ese mismo email, porque Google ya verificó que el email es suyo).
+
+### 10.4 Ejercicios
+**A — Que la invitación dure 7 días.** En `UsuariosController`, cambiá `VigenciaInvitacion` a `TimeSpan.FromDays(7)` y el texto "72 horas" en el email y en las vistas.
+
+**B — Que los operadores también puedan invitar, pero solo con rol Consulta.** Hay que sacar `Invitar` del `[Authorize(Roles = Roles.Administrador)]` de la clase (ponerle `[Authorize(Roles = Roles.Edicion)]`) y, en el POST, si quien invita no es admin, forzar `modelo.Rol = Roles.Consulta`.

@@ -88,9 +88,16 @@ public static class ActualizacionesBase // Clase estática de ayuda
         );
         """; // Fin del SQL de la versión 4
 
+    // Versión 5: invitaciones de usuarios por email
+    private const string Version5 = """
+        ALTER TABLE "Usuarios" ADD COLUMN IF NOT EXISTS "InvitacionPendiente" boolean NOT NULL DEFAULT FALSE;
+        ALTER TABLE "Usuarios" ADD COLUMN IF NOT EXISTS "InvitadoPor" character varying(150) NULL;
+        """; // Fin del SQL de la versión 5
+
     public static async Task AplicarAsync(AppDbContext db) // Se llama al arrancar, después de EnsureCreated
     { // Inicio del método
         await db.Database.ExecuteSqlRawAsync(Version3); // Versión 3: productos y stock
         await db.Database.ExecuteSqlRawAsync(Version4); // Versión 4: Google Drive y Calendar
+        await db.Database.ExecuteSqlRawAsync(Version5); // Versión 5: invitaciones
     } // Fin del método
 } // Fin de la clase

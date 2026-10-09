@@ -23,6 +23,8 @@ Se crean solos la primera vez. Contraseña: la de la variable `Demo__Password` (
 | `operador@demo.com` | Operador | Crear y editar clientes y pedidos, cambiar estados, probar el webhook |
 | `consulta@demo.com` | Consulta | Solo ver |
 
+El administrador puede **invitar** usuarios con el rol que elija (*Usuarios → Invitar*): les llega un email con un enlace de un solo uso (vence en 72 horas, en la base se guarda solo su hash) para elegir su contraseña y entrar.
+
 Las cuentas nuevas (con **Crear cuenta** o **Ingresar con Google**) quedan **inactivas con rol Consulta** hasta que un administrador las activa en *Usuarios*. Con la variable `Registro__AprobacionAutomatica=true` se activarían solas (siempre con rol Consulta).
 
 ## Funcionalidades

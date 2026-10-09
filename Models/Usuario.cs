@@ -40,5 +40,10 @@ public class Usuario // Clase pública
 
     [StringLength(100)] // Hash del token
     public string? TokenRecuperacionHash { get; set; } // Hash del código de "olvidé mi contraseña" (el código real solo viaja por email)
-    public DateTime? TokenRecuperacionVence { get; set; } // Hasta cuándo sirve ese código (30 minutos)
+    public DateTime? TokenRecuperacionVence { get; set; } // Hasta cuándo sirve ese código (30 minutos para recuperar, 72 horas para una invitación)
+
+    public bool InvitacionPendiente { get; set; } // true = un admin lo invitó y todavía no eligió su contraseña (la cuenta no se puede usar hasta aceptar)
+
+    [StringLength(150)] // Email
+    public string? InvitadoPor { get; set; } // Qué administrador lo invitó (null si se registró solo)
 } // Fin de la clase

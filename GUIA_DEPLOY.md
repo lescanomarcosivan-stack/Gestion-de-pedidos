@@ -221,3 +221,25 @@ Si sale un error que menciona que la API "has not been used" o está "disabled":
 - [ ] Entrá con `consulta@demo.com`: puede descargar, pero no subir ni quitar.
 - [ ] **Registro → tipo Google**: aparecen la conexión, los archivos y los eventos.
 - [ ] Menú **Google → Sincronizar entregas**: agenda en Calendar todos los pedidos que ya tenían fecha.
+
+---
+
+# Versión 5: invitar usuarios por email
+
+**No borra datos. No hace falta ninguna variable nueva.**
+
+Para que el email llegue de verdad tiene que estar configurado Brevo (Parte 6: `Email__BrevoApiKey` y `Email__Remitente`). Si no está, la invitación igual se crea y la app te muestra el enlace con un botón **Copiar**, para que se lo mandes vos (por WhatsApp, por ejemplo).
+
+## Subir
+1. Descomprimí el zip nuevo → GitHub: **Add file → Upload files** → arrastrá todo → **Commit changes**.
+2. Comprobá que existan `Views/Usuarios/Invitar.cshtml`, `Views/Cuenta/AceptarInvitacion.cshtml` y `Views/Cuenta/InvitacionInvalida.cshtml`.
+3. En Railway, esperá a que el deploy diga **Active**.
+
+## Probar (checklist)
+- [ ] Como admin: **Usuarios → + Invitar usuario** → nombre, un email tuyo que no esté cargado, rol **Operador** → **Enviar invitación**.
+- [ ] En el listado aparece con la etiqueta **Invitación enviada** y los botones **Reenviar** y **Cancelar**.
+- [ ] Abrí el email (revisá **spam**) → **Aceptar invitación** → elegí la contraseña → **Activar cuenta y entrar**. Entrás directo con rol Operador.
+- [ ] Volvé a abrir el mismo enlace: dice **"El enlace no es válido"** (sirve una sola vez).
+- [ ] **Salir** y entrá de nuevo con ese email y la contraseña nueva.
+- [ ] Probá **Reenviar** con otra invitación: el enlace anterior deja de servir.
+- [ ] **Registro**: aparecen "Usuario invitado", "Email enviado" e "Invitación aceptada".

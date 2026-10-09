@@ -4,11 +4,29 @@
 @{
     ViewData["Title"] = "Usuarios"; // Título de la pestaña
     var miId = (int)ViewBag.MiId; // Id del administrador actual (no puede modificarse a sí mismo)
-    var pendientes = Model.Count(u => !u.Activo); // Cantidad de cuentas inactivas/pendientes
+    var pendientes = Model.Count(u => !u.Activo && !u.InvitacionPendiente); // Cuentas inactivas o esperando aprobación (sin contar invitaciones)
+    var enlace = TempData["EnlaceInvitacion"] as string; // Enlace de invitación, solo si el email no se pudo enviar
 }
 
-<h1 class="h3 mb-1">Usuarios</h1> @* Título *@
-<p style="color: var(--gris-azulado)">Las cuentas nuevas (registro o Google) quedan inactivas con rol <strong>Consulta</strong> hasta que un administrador las activa. Desde acá podés aprobarlas, darles más permisos o desactivarlas.</p> @* Explicación *@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1"> @* Fila de título *@
+    <h1 class="h3 mb-0">Usuarios</h1> @* Título *@
+    <a class="btn btn-primary" asp-action="Invitar">+ Invitar usuario</a> @* Invitación por email *@
+</div> @* Fin de la fila *@
+<p style="color: var(--gris-azulado)">Podés <strong>invitar</strong> a una persona con el rol que elijas: le llega un email para crear su contraseña. Las cuentas que se crean solas (registro o Google) quedan inactivas con rol <strong>Consulta</strong> hasta que un administrador las activa.</p> @* Explicación *@
+
+@* Si el email no salió, mostramos el enlace para que el admin lo mande por otro medio *@
+@if (enlace is not null)
+{
+    <div class="card mb-3 border-warning"> @* Tarjeta *@
+        <div class="card-body"> @* Contenido *@
+            <label class="form-label small mb-1" for="enlaceInvitacion">Enlace de invitación (válido 72 horas, un solo uso):</label> @* Etiqueta *@
+            <div class="input-group"> @* Campo + botón *@
+                <input id="enlaceInvitacion" class="form-control form-control-sm" value="@enlace" readonly /> @* Enlace *@
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigator.clipboard.writeText(document.getElementById('enlaceInvitacion').value); this.textContent = '✓ Copiado';">Copiar</button> @* Copia al portapapeles *@
+            </div> @* Fin del grupo *@
+        </div> @* Fin del contenido *@
+    </div> @* Fin de la tarjeta *@
+}
 
 @* Aviso si hay cuentas esperando aprobación *@
 @if (pendientes > 0)
@@ -26,7 +44,7 @@
                 {
                     <tr> @* Fila *@
                         <td><strong>@u.Nombre</strong><div class="small" style="color: var(--gris-azulado)">@u.Email</div></td> @* Nombre y email *@
-                        <td class="small">@(u.PasswordHash is null ? "" : "Contraseña")@(u.PasswordHash is not null && u.GoogleId is not null ? " + " : "")@(u.GoogleId is null ? "" : "Google")</td> @* Cómo puede entrar *@
+                        <td class="small">@(u.InvitacionPendiente && u.PasswordHash is null && u.GoogleId is null ? "—" : "")@(u.PasswordHash is null ? "" : "Contraseña")@(u.PasswordHash is not null && u.GoogleId is not null ? " + " : "")@(u.GoogleId is null ? "" : "Google")</td> @* Cómo puede entrar *@
                         <td class="small">@(u.UltimoAcceso is DateTime f ? Formato.Fecha(f) : "Nunca")</td> @* Último ingreso *@
                         <td> @* Rol *@
                             @* El propio administrador no puede cambiarse el rol *@
@@ -53,6 +71,15 @@
                             @if (u.Id == miId)
                             {
                                 <span class="estado estado-entregado">Activo</span> @* Solo etiqueta *@
+                            }
+                            else if (u.InvitacionPendiente)
+                            {
+                                var vencida = u.TokenRecuperacionVence is null || u.TokenRecuperacionVence < DateTime.UtcNow; // ¿El enlace ya venció?
+                                <div class="d-flex flex-wrap align-items-center gap-2"> @* Estado y acciones de la invitación *@
+                                    <span class="estado @(vencida ? "estado-cancelado" : "estado-preparacion")" title="Invitado por @u.InvitadoPor">@(vencida ? "Invitación vencida" : "Invitación enviada")</span> @* Estado *@
+                                    <form asp-action="ReenviarInvitacion" asp-route-id="@u.Id" method="post" class="m-0"><button class="btn btn-sm btn-outline-primary">Reenviar</button></form> @* Nuevo enlace *@
+                                    <form asp-action="CancelarInvitacion" asp-route-id="@u.Id" method="post" class="m-0"><button class="btn btn-sm btn-outline-danger">Cancelar</button></form> @* Borra la invitación *@
+                                </div> @* Fin *@
                             }
                             else
                             {

@@ -1,0 +1,46 @@
+@* Formulario para invitar a una persona: le llega un email con un enlace para elegir su contraseña *@
+@* La vista recibe nombre, email y rol *@
+@model InvitarUsuarioViewModel
+@{
+    ViewData["Title"] = "Invitar usuario"; // Título de la pestaña
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3"> @* Fila de título *@
+    <h1 class="h3 mb-0">Invitar usuario</h1> @* Título *@
+    <a asp-action="Index">← Volver a usuarios</a> @* Volver *@
+</div> @* Fin de la fila *@
+
+<div class="row"> @* Grilla *@
+    <div class="col-lg-6"> @* Columna del formulario *@
+        <div class="card"> @* Tarjeta *@
+            <div class="card-body"> @* Contenido *@
+                <form asp-action="Invitar" method="post"> @* POST /Usuarios/Invitar *@
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div> @* Errores generales *@
+                    <div class="mb-3"><label asp-for="Nombre" class="form-label"></label><input asp-for="Nombre" class="form-control" /><span asp-validation-for="Nombre" class="text-danger small"></span></div> @* Nombre *@
+                    <div class="mb-3"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" type="email" /><span asp-validation-for="Email" class="text-danger small"></span></div> @* Email *@
+                    <div class="mb-3"> @* Rol *@
+                        <label asp-for="Rol" class="form-label"></label> @* Etiqueta *@
+                        <select asp-for="Rol" class="form-select"> @* Combo de roles *@
+                            @* Una opción por rol *@
+                            @foreach (var r in Roles.Todos)
+                            {
+                                <option value="@r">@r</option> @* Opción *@
+                            }
+                        </select> @* Fin del combo *@
+                        <span asp-validation-for="Rol" class="text-danger small"></span> @* Error *@
+                    </div> @* Fin del rol *@
+                    <button type="submit" class="btn btn-primary">Enviar invitación</button> @* Envía *@
+                </form> @* Fin del formulario *@
+            </div> @* Fin del contenido *@
+        </div> @* Fin de la tarjeta *@
+    </div> @* Fin de la columna *@
+    <div class="col-lg-6 small mt-3 mt-lg-0" style="color: var(--gris-azulado)"> @* Explicación *@
+        <p class="mb-2"><strong>Cómo funciona</strong></p> @* Título *@
+        <ol class="ps-3"> @* Pasos *@
+            <li>La persona recibe un email con el botón <strong>Aceptar invitación</strong>.</li> @* Paso 1 *@
+            <li>Al hacer clic, elige su contraseña y entra directamente con el rol que le diste.</li> @* Paso 2 *@
+            <li>El enlace vence en <strong>72 horas</strong> y sirve una sola vez. Si vence, usá <strong>Reenviar</strong> en el listado.</li> @* Paso 3 *@
+        </ol> @* Fin de los pasos *@
+        <p class="mb-0"><strong>Roles:</strong> Administrador = todo · Operador = carga y modifica clientes, pedidos y productos · Consulta = solo mira.</p> @* Recordatorio *@
+    </div> @* Fin de la explicación *@
+</div> @* Fin de la grilla *@
